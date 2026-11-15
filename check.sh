@@ -4,7 +4,7 @@
 # Запуск:  sh check.sh
 #
 # Что проверяется:
-#   * синтаксис всех sh-скриптов и хуков;
+#   * синтаксис sh/bash-скриптов и хуков;
 #   * парность тегов XML/SVG;
 #   * .desktop: обязательные поля, существование Exec и иконки;
 #   * списки пакетов: формат, пустые файлы, дубликаты;
@@ -42,7 +42,15 @@ for f in build.sh check.sh \
     case "$f" in
         *.py) continue ;;
     esac
-    if sh -n "$f" 2>"$TMP/err"; then ok "$f"; else bad "$f"; sed 's/^/         /' "$TMP/err"; fi
+    # Игры используют массивы bash. На Debian проверять их через dash
+    # нельзя: sh -n падает на «Syntax error: "(" unexpected». Берём
+    # интерпретатор из shebang, а на Android (bash нет) остаётся mksh.
+    if head -n 1 "$f" 2>/dev/null | grep -q 'bash' && command -v bash >/dev/null 2>&1; then
+        bash -n "$f" 2>"$TMP/err"
+    else
+        sh -n "$f" 2>"$TMP/err"
+    fi
+    if [ $? -eq 0 ]; then ok "$f"; else bad "$f"; sed 's/^/         /' "$TMP/err"; fi
 done
 
 printf '\n▸ XML и SVG\n'
