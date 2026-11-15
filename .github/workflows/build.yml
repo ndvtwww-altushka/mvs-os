@@ -136,10 +136,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            live-build debootstrap debian-archive-keyring fakeroot squashfs-tools xorriso \
+            debootstrap debian-archive-keyring fakeroot squashfs-tools xorriso \
             syslinux syslinux-common isolinux syslinux-efi \
             grub-efi-amd64-bin grub-pc-bin \
             mtools dosfstools file rsync wget xz-utils bzip2 cpio apt-utils
+
+      - name: live-build из Debian bookworm
+        # В Ubuntu 24.04 live-build 3.0~a57 (2013 год) не знает
+        # --bootloaders и --iso-compression. Пакуем свежий live-build
+        # из Debian: он состоит из shell-скриптов и зависит только
+        # от debootstrap, который уже установлен выше.
+        run: |
+          sudo apt-get purge -y live-build || true
+          curl -fsSL -o /tmp/live-build.deb \
+            https://deb.debian.org/debian/pool/main/l/live-build/live-build_20230502_all.deb
+          sudo dpkg -i /tmp/live-build.deb
+          lb --version
 
       - name: Версии инструментов (для лога)
         run: |

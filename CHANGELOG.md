@@ -40,6 +40,9 @@
   на push в `main`, тег и вручную. В ручном запуске появились
   `publish_release` и `release_tag`. Добавлены очистка диска runner'а,
   `debian-archive-keyring` и 240 секунд на загрузку в QEMU.
+- CI ставит live-build из Debian bookworm: в Ubuntu 24.04 лежит версия
+  3.0~a57 2013 года, которая не понимает `--bootloaders` и
+  `--iso-compression`. Debian-пакет зависит только от debootstrap.
 
 ## 1.0 «Aurora»
 
