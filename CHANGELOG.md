@@ -43,6 +43,9 @@
 - CI ставит live-build из Debian bookworm: в Ubuntu 24.04 лежит версия
   3.0~a57 2013 года, которая не понимает `--bootloaders` и
   `--iso-compression`. Debian-пакет зависит только от debootstrap.
+- `build.sh`: сжатие squashfs задаётся настоящим параметром
+  `--chroot-squashfs-compression-type xz`; опции `--iso-compression`
+  в live-build не существует (xz и так используется по умолчанию).
 
 ## 1.0 «Aurora»
 

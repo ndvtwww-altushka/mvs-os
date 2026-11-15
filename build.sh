@@ -79,7 +79,7 @@ lb config \
     --iso-preparer "MVS OS" \
     --iso-publisher "MVS OS" \
     --iso-volume "MVS_OS" \
-    --iso-compression xz \
+    --chroot-squashfs-compression-type xz \
     --chroot-filesystem squashfs \
     --memtest none \
     --apt-recommends false \
