@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Settings
+Comment=Системные настройки XFCE
+Comment[en]=MVS Settings for MVS OS
+Exec=mvs-settings
+Icon=mvs-settings
+Terminal=false
+StartupNotify=true
+Categories=Settings;DesktopSettings;
+Keywords=mvs;settings;настройки;

@@ -1,0 +1,3 @@
+#!/bin/sh
+# MVS OS — приложение MVS doctor.
+exec python3 /usr/lib/mvs/apps/mvs_doctor.py "$@"

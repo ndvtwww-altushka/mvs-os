@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>MVS monitor</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#242942"/>
+      <stop offset="1" stop-color="#14151f"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bg)" stroke="#3b4261" stroke-width="1.5"/>
+  <g fill="none" stroke="#7aa2f7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="11" y="15" width="42" height="30" rx="4"/><path d="M16 39l8-10 6 6 8-12 10 8"/>
+  </g>
+</svg>

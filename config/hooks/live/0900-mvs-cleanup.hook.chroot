@@ -1,0 +1,42 @@
+#!/bin/sh
+# MVS OS 1.0 — чистка перед упаковкой squashfs.
+#
+# Цель — меньший ISO и отсутствие следов сборки. Ничего из файлов системы
+# здесь не удаляется: только кэши, журналы, документация и временные файлы.
+set -e
+
+echo "▸ MVS OS: чистка"
+
+# --- кэши пакетов ---------------------------------------------------------
+apt-get clean >/dev/null 2>&1 || true
+rm -rf /var/lib/apt/lists/* /var/cache/apt/* /var/cache/debconf/*.dat 2>/dev/null || true
+
+# --- документация и man ---------------------------------------------------
+rm -rf /usr/share/doc/* 2>/dev/null || true
+rm -rf /usr/share/man/* 2>/dev/null || true
+rm -rf /usr/share/info/* 2>/dev/null || true
+rm -rf /usr/share/lintian/* 2>/dev/null || true
+
+# --- питоновские кэши -----------------------------------------------------
+find /usr/lib/mvs /usr/local/bin -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+find /usr/lib/mvs -name '*.pyc' -delete 2>/dev/null || true
+
+# --- журналы Calamares и установки ---------------------------------------
+rm -rf /root/.cache/calamares 2>/dev/null || true
+rm -f /var/log/mvs-*.log /var/log/calamares.log 2>/dev/null || true
+
+# --- временные файлы ------------------------------------------------------
+rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
+find /var/log -type f -exec truncate -s 0 {} + 2>/dev/null || true
+
+# --- история и мусор в домашних папках -----------------------------------
+rm -f /root/.bash_history /home/*/.bash_history 2>/dev/null || true
+rm -rf /home/*/.cache/* 2>/dev/null || true
+rm -rf /root/.cache/* 2>/dev/null || true
+
+# --- следы сборки ---------------------------------------------------------
+rm -f /etc/ssh/ssh_host_* 2>/dev/null || true
+: > /etc/machine-id 2>/dev/null || true
+rm -f /var/lib/dbus/machine-id 2>/dev/null || true
+
+echo "▸ MVS OS: чистка готова"

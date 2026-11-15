@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Files
+Comment=Файлы и папки
+Exec=mvs-files
+Icon=mvs-files
+Terminal=false
+StartupNotify=true
+Categories=System;

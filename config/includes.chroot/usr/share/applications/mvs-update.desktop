@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Update
+Comment=Обновления системы из репозиториев Debian
+Comment[en]=MVS Update for MVS OS
+Exec=mvs-update
+Icon=mvs-update
+Terminal=false
+StartupNotify=true
+Categories=System;PackageManager;
+Keywords=mvs;update;обновления;

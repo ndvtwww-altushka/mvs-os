@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Control Center
+Comment=Настройки и состояние системы
+Comment[en]=MVS Control Center for MVS OS
+Exec=mvs-control
+Icon=mvs-control
+Terminal=false
+StartupNotify=true
+Categories=Settings;System;
+Keywords=mvs;control;настройки;система;

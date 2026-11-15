@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS About
+Comment=Версия и оборудование
+Exec=mvs-about
+Icon=mvs-about
+Terminal=false
+StartupNotify=true
+Categories=System;

@@ -1,0 +1,3 @@
+#!/bin/sh
+# MVS OS — приложение MVS hub.
+exec python3 /usr/lib/mvs/apps/mvs_hub.py "$@"

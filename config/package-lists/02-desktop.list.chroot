@@ -1,0 +1,84 @@
+# MVS OS 1.0 — рабочий стол.
+#
+# XFCE + фирменное оформление MVS. Драйверы перечислены явно: сборка идёт
+# без recommends, и «оно само подтянется» здесь не работает.
+
+# --- графика ------------------------------------------------------------
+xorg
+xserver-xorg-video-intel
+xserver-xorg-video-amdgpu
+xserver-xorg-video-ati
+xserver-xorg-video-nouveau
+xserver-xorg-video-vesa
+xserver-xorg-input-libinput
+xserver-xorg-input-synaptics
+
+# --- XFCE ---------------------------------------------------------------
+xfce4-session
+xfce4-settings
+xfce4-panel
+xfce4-appfinder
+xfce4-terminal
+xfce4-whiskermenu-plugin
+xfce4-pulseaudio-plugin
+xfce4-power-manager
+xfce4-power-manager-plugins
+xfce4-screenshooter
+xfce4-notifyd
+xfwm4
+xfdesktop4
+thunar
+thunar-volman
+mousepad
+ristretto
+atril
+file-roller
+galculator
+zenity
+desktop-file-utils
+xdg-utils
+dbus-x11
+
+# --- вход и оформление --------------------------------------------------
+lightdm
+lightdm-gtk-greeter
+arc-theme
+papirus-icon-theme
+adwaita-icon-theme
+hicolor-icon-theme
+librsvg2-common
+shared-mime-info
+fonts-noto-core
+fonts-noto-color-emoji
+fonts-dejavu-core
+fonts-liberation
+
+# --- сеть, звук, диски --------------------------------------------------
+network-manager
+network-manager-gnome
+bluez
+blueman
+pulseaudio
+pulseaudio-utils
+pulseaudio-module-bluetooth
+alsa-utils
+pavucontrol
+gvfs
+gvfs-backends
+udisks2
+exfatprogs
+ntfs-3g
+parted
+dosfstools
+unzip
+zip
+p7zip-full
+xz-utils
+
+# --- печать и сканирование ----------------------------------------------
+cups
+cups-pk-helper
+system-config-printer
+printer-driver-gutenprint
+simple-scan
+sane-utils

@@ -1,0 +1,117 @@
+/* MVS OS 1.0 «Aurora» — светлая GTK-тема Aurora Day.
+ * Основа — Arc; палитра и акценты — MVS.
+ */
+
+@import url("/usr/share/themes/Arc/gtk-3.0/gtk.css");
+
+@define-color theme_bg_color #f2f4fb;
+@define-color theme_fg_color #1f2335;
+@define-color theme_base_color #ffffff;
+@define-color theme_text_color #1f2335;
+@define-color theme_selected_bg_color #3d59a1;
+@define-color theme_selected_fg_color #ffffff;
+@define-color insensitive_bg_color #e9edf7;
+@define-color insensitive_fg_color #8a92ad;
+@define-color borders #d3d9ec;
+@define-color unfocused_borders #e2e6f2;
+@define-color warning_color #b7791f;
+@define-color error_color #c4344f;
+@define-color success_color #3f7d3f;
+
+headerbar,
+.titlebar {
+  background-image: none;
+  background-color: #ffffff;
+  color: #1f2335;
+  border-bottom: 1px solid #dfe3f0;
+  box-shadow: none;
+}
+
+headerbar:backdrop,
+.titlebar:backdrop {
+  background-color: #f7f9ff;
+  color: #8a92ad;
+}
+
+menubar,
+.menubar {
+  background-color: #ffffff;
+  color: #1f2335;
+}
+
+menu,
+.menu,
+.context-menu,
+popover.background {
+  background-color: #ffffff;
+  color: #1f2335;
+  border: 1px solid #d3d9ec;
+}
+
+menuitem:hover,
+menu menuitem:hover {
+  background-color: rgba(61, 89, 161, 0.14);
+}
+
+tooltip {
+  background-color: #ffffff;
+  color: #1f2335;
+  border: 1px solid #d3d9ec;
+}
+
+button.suggested-action {
+  background-color: #3d59a1;
+  color: #ffffff;
+  border-color: #3d59a1;
+}
+
+button.destructive-action {
+  background-color: #c4344f;
+  color: #ffffff;
+  border-color: #c4344f;
+}
+
+entry,
+spinbutton,
+searchentry {
+  background-color: #ffffff;
+  color: #1f2335;
+  border-color: #d3d9ec;
+}
+
+entry:focus {
+  border-color: #3d59a1;
+}
+
+switch:checked {
+  background-color: #3d59a1;
+}
+
+scale highlight {
+  background-color: #3d59a1;
+}
+
+progressbar progress {
+  background-color: #3d59a1;
+}
+
+checkbutton check:checked,
+radiobutton radio:checked {
+  background-color: #3d59a1;
+  border-color: #3d59a1;
+  color: #ffffff;
+}
+
+scrollbar slider {
+  background-color: #c3cce4;
+}
+
+notebook > header > tabs > tab:checked {
+  border-color: #3d59a1;
+}
+
+selection,
+*:selected {
+  background-color: #3d59a1;
+  color: #ffffff;
+}

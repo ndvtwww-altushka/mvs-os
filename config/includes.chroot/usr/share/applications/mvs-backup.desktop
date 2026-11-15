@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Backup
+Comment=Резервные копии папок пользователя
+Comment[en]=MVS Backup for MVS OS
+Exec=mvs-backup
+Icon=mvs-backup
+Terminal=false
+StartupNotify=true
+Categories=System;FileTools;
+Keywords=mvs;backup;резервная;копия;

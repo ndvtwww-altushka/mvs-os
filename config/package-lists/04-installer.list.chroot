@@ -1,0 +1,20 @@
+# MVS OS 1.0 — установщик.
+#
+# Calamares ставит систему на диск; grub — загрузчик для UEFI и Legacy BIOS.
+# Эти пакеты нужны и в Live-системе (чтобы установщик мог работать),
+# и в установленной системе (чтобы загрузчик обновлялся вместе с ядром).
+
+calamares
+libqt5svg5
+qttranslations5-l10n
+
+grub2-common
+grub-common
+grub-pc-bin
+grub-efi-amd64-bin
+grub-efi-amd64-signed
+shim-signed
+efibootmgr
+os-prober
+mtools
+squashfs-tools

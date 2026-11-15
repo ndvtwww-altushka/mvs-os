@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=MVS-Dark
+Comment=MVS OS — тёмное оформление Aurora Night
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=MVS-Dark
+MetacityTheme=Arc-Dark
+IconTheme=MVS
+CursorTheme=Adwaita
+ButtonLayout=:minimize,maximize,close

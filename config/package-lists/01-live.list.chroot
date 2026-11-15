@@ -1,0 +1,54 @@
+# MVS OS 1.0 — уровень Live-системы.
+#
+# Здесь только то, без чего не загрузится флешка: ядро, live-скрипты,
+# прошивки, экран загрузки. Рабочий стол и приложения — в соседних списках.
+# Сборка идёт с --apt-recommends false, поэтому всё нужное перечислено явно.
+
+# --- Live ---------------------------------------------------------------
+live-boot
+live-config
+live-config-systemd
+live-tools
+
+# --- ядро ---------------------------------------------------------------
+linux-image-amd64
+initramfs-tools
+kmod
+pciutils
+usbutils
+
+# --- прошивки (только свободные + common non-free) ----------------------
+firmware-linux-free
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-brcm80211
+firmware-misc-nonfree
+
+# --- экран загрузки -----------------------------------------------------
+plymouth
+plymouth-themes
+
+# --- безопасность как часть системы ------------------------------------
+sudo
+ufw
+apparmor
+polkitd
+pkexec
+policykit-1-gnome
+
+# --- базовые утилиты ----------------------------------------------------
+locales
+keyboard-configuration
+console-setup
+bash
+bash-completion
+nano
+less
+ca-certificates
+
+# --- обслуживание системы ----------------------------------------------
+# zram: сжатый swap в памяти для машин с 2–4 ГБ RAM.
+zram-tools
+# Автоматические обновления безопасности (только security, без ребута).
+unattended-upgrades

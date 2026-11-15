@@ -1,0 +1,4 @@
+#!/bin/sh
+# MVS OS — MVS Files: проводник Thunar с настройками MVS.
+# Отдельное оформление не требуется: Thunar использует системную тему MVS.
+exec thunar "$@"

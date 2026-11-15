@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16161e"/>
+      <stop offset="0.45" stop-color="#1a1b26"/>
+      <stop offset="1" stop-color="#24283b"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0.2" cy="0.15" r="0.7">
+      <stop offset="0" stop-color="#7aa2f7" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#7aa2f7" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.85" cy="0.8" r="0.6">
+      <stop offset="0" stop-color="#bb9af7" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#bb9af7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7aa2f7" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#7aa2f7" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#7aa2f7" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="mvs" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7dcfff"/>
+      <stop offset="0.55" stop-color="#7aa2f7"/>
+      <stop offset="1" stop-color="#bb9af7"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#glow1)"/>
+  <rect width="1920" height="1080" fill="url(#glow2)"/>
+
+  <g opacity="0.35" fill="none" stroke="#414868" stroke-width="1">
+    <path d="M-120 720 C 260 620, 540 860, 900 760 S 1540 620, 2040 780"/>
+    <path d="M-120 790 C 260 690, 540 930, 900 830 S 1540 690, 2040 850"/>
+    <path d="M-120 860 C 260 760, 540 1000, 900 900 S 1540 760, 2040 920"/>
+  </g>
+
+  <rect x="120" y="180" width="520" height="1" fill="url(#line)"/>
+
+  <g transform="translate(120 240)">
+    <rect x="0" y="0" width="112" height="112" rx="26" fill="#1a1b26" stroke="#414868" stroke-width="2"/>
+    <path d="M28 82V30l28 28 28-28v52" fill="none" stroke="url(#mvs)" stroke-width="10"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="120" y="430" font-family="Noto Sans, DejaVu Sans, sans-serif" font-size="58"
+        font-weight="700" fill="#c0caf5">MVS OS</text>
+  <text x="120" y="480" font-family="Noto Sans, DejaVu Sans, sans-serif" font-size="22"
+        fill="#7aa2f7">своя система · live · 0.1</text>
+
+  <text x="1800" y="1010" text-anchor="end" font-family="Noto Sans, DejaVu Sans, sans-serif"
+        font-size="20" fill="#565f89">MVS OS · 2026</text>
+</svg>

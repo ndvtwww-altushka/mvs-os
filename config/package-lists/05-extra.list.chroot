@@ -1,0 +1,124 @@
+# MVS OS 1.0 — дополнительное ПО установленной системы.
+#
+# Здесь то, что делает систему полноценной без магазина: офис, почта,
+# мультимедиа, работа с дисками, диагностика и инструменты разработчика.
+# Всё ставится в образ заранее: работает без интернета и не требует
+# запускать что-то после установки.
+#
+# Сборка идёт с --apt-recommends false, поэтому то, что Debian обычно
+# подтягивает сам, перечислено явно (движок шахмат, плагины VLC,
+# просмотрщик PDF для миниатюр и т. д.).
+
+# --- офис ---------------------------------------------------------------
+libreoffice-writer
+libreoffice-calc
+libreoffice-impress
+libreoffice-gtk3
+libreoffice-style-colibre
+libreoffice-l10n-ru
+libreoffice-help-ru
+hunspell-ru
+hyphen-ru
+mythes-ru
+fonts-crosextra-carlito
+fonts-crosextra-caladea
+
+# --- почта --------------------------------------------------------------
+thunderbird
+thunderbird-l10n-ru
+
+# --- мультимедиа --------------------------------------------------------
+vlc
+vlc-plugin-access-extra
+vlc-plugin-notify
+vlc-plugin-video-splitter
+vlc-plugin-visualization
+ffmpeg
+libavcodec-extra
+ffmpegthumbnailer
+
+# --- рабочий стол: то, без чего он неполный ----------------------------
+light-locker
+tumbler
+xfce4-clipman-plugin
+xfce4-sensors-plugin
+at-spi2-core
+xdg-user-dirs
+xdg-user-dirs-gtk
+fonts-firacode
+catfish
+unrar-free
+
+# --- печать, сканирование, обнаружение в сети --------------------------
+cups-browsed
+avahi-daemon
+avahi-utils
+libnss-mdns
+sane-airscan
+
+# --- сеть и общий доступ ------------------------------------------------
+smbclient
+
+# --- диски, железо, прошивки -------------------------------------------
+gparted
+gnome-disk-utility
+smartmontools
+nvme-cli
+lm-sensors
+fwupd
+fwupd-amd64-signed
+gnome-firmware
+firmware-linux-nonfree
+intel-microcode
+amd64-microcode
+
+# --- безопасность -------------------------------------------------------
+apparmor-profiles
+apparmor-utils
+gnome-keyring
+libpam-gnome-keyring
+seahorse
+gcr
+
+# --- терминал и диагностика --------------------------------------------
+htop
+ncdu
+tree
+rsync
+curl
+wget
+git
+openssh-client
+xauth
+gnupg
+mc
+vim
+file
+jq
+inxi
+lshw
+command-not-found
+needrestart
+traceroute
+bind9-dnsutils
+net-tools
+
+# --- установка пакетов и .deb ------------------------------------------
+gdebi
+synaptic
+
+# --- удалённый доступ ---------------------------------------------------
+remmina
+remmina-plugin-rdp
+remmina-plugin-vnc
+remmina-plugin-secret
+
+# --- разработка ---------------------------------------------------------
+python3-pip
+python3-venv
+
+# --- игры ---------------------------------------------------------------
+gnome-sudoku
+gnome-chess
+stockfish
+four-in-a-row

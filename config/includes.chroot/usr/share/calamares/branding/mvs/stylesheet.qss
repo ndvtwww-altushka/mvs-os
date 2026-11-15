@@ -1,0 +1,80 @@
+/* MVS OS 1.0 «Aurora» — вид установщика.
+   Те же цвета, что и в системной теме MVS: тёмная панель, голубой акцент. */
+
+QWidget {
+    background-color: #1a1b26;
+    color: #c0caf5;
+    font-family: "Noto Sans";
+    font-size: 10pt;
+}
+
+QPushButton {
+    background-color: #24283b;
+    border: 1px solid #3b4261;
+    border-radius: 8px;
+    padding: 7px 16px;
+}
+
+QPushButton:hover {
+    background-color: #2c3250;
+}
+
+QPushButton:disabled {
+    color: #565f89;
+    background-color: #1c1f2e;
+}
+
+QPushButton#nextAppButton,
+QPushButton#installButton {
+    background-color: #7aa2f7;
+    border-color: #7aa2f7;
+    color: #16161e;
+    font-weight: 600;
+}
+
+QLineEdit,
+QComboBox,
+QSpinBox,
+QTextEdit {
+    background-color: #11121a;
+    border: 1px solid #2f3650;
+    border-radius: 7px;
+    padding: 5px 8px;
+    selection-background-color: #7aa2f7;
+}
+
+QLineEdit:focus {
+    border-color: #7aa2f7;
+}
+
+QProgressBar {
+    background-color: #16161e;
+    border: 1px solid #262b40;
+    border-radius: 6px;
+    text-align: center;
+}
+
+QProgressBar::chunk {
+    background-color: #7aa2f7;
+    border-radius: 5px;
+}
+
+QScrollArea,
+QListWidget,
+QTreeView {
+    background-color: #16161e;
+    border: 1px solid #262b40;
+    border-radius: 8px;
+}
+
+QListWidget::item:selected,
+QTreeView::item:selected {
+    background-color: rgba(122, 162, 247, 0.22);
+    color: #e6e9f5;
+}
+
+QLabel#titleLabel {
+    font-size: 22px;
+    font-weight: 700;
+    color: #e6e9f5;
+}

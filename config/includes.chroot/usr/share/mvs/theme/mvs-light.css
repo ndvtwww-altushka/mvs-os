@@ -1,0 +1,360 @@
+/* MVS OS 1.0 «Aurora» — светлая тема приложений MVS. */
+
+window {
+  background-color: #f2f4fb;
+  color: #1f2335;
+}
+
+headerbar {
+  background-image: none;
+  background-color: #ffffff;
+  border: none;
+  border-bottom: 1px solid #dfe3f0;
+  box-shadow: none;
+  min-height: 46px;
+  padding: 0 8px;
+}
+
+headerbar .title {
+  font-weight: 600;
+  color: #1f2335;
+}
+
+headerbar .subtitle {
+  color: #6b7394;
+  font-size: 12px;
+}
+
+label {
+  color: #1f2335;
+}
+
+.mvs-h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #16161e;
+}
+
+.mvs-h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2335;
+}
+
+.mvs-subtle {
+  font-size: 12px;
+  color: #6b7394;
+}
+
+.mvs-big {
+  font-size: 30px;
+  font-weight: 700;
+  color: #3d59a1;
+}
+
+.mvs-nav {
+  font-size: 13px;
+  color: #1f2335;
+}
+
+.mvs-accent {
+  color: #3d59a1;
+}
+
+.mvs-dim {
+  color: #8a92ad;
+}
+
+.danger {
+  color: #c4344f;
+}
+
+.mvs-ok {
+  color: #2f7d32;
+  font-weight: 600;
+}
+
+.mvs-warn {
+  color: #9a6700;
+  font-weight: 600;
+}
+
+.mvs-bad {
+  color: #c4344f;
+  font-weight: 600;
+}
+
+.mvs-sidebar {
+  background-color: #ffffff;
+  border-right: 1px solid #e2e6f2;
+  padding: 8px 0;
+}
+
+.mvs-sidebar row {
+  border-radius: 10px;
+  margin: 1px 8px;
+}
+
+.mvs-sidebar row:hover {
+  background-color: #f0f3fc;
+}
+
+.mvs-sidebar row:selected {
+  background-image: none;
+  background-color: rgba(61, 89, 161, 0.14);
+}
+
+.mvs-sidebar row:selected label {
+  color: #22315c;
+  font-weight: 600;
+}
+
+.card {
+  background-color: #ffffff;
+  border: 1px solid #e2e6f2;
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.card:hover {
+  border-color: #cdd5ea;
+}
+
+.mvs-tile {
+  background-color: #ffffff;
+  border: 1px solid #e2e6f2;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.mvs-tile:hover {
+  background-color: #f7f9ff;
+  border-color: #b9c5e6;
+}
+
+.mvs-sep {
+  background-color: #e2e6f2;
+  min-height: 1px;
+  margin: 4px 0;
+}
+
+button.mvs-button {
+  background-image: none;
+  background-color: #eef1fa;
+  border: 1px solid #d3d9ec;
+  border-radius: 9px;
+  color: #1f2335;
+  padding: 7px 15px;
+  font-weight: 500;
+}
+
+button.mvs-button:hover {
+  background-color: #e4e9f7;
+  border-color: #b9c5e6;
+}
+
+button.mvs-button:active,
+button.mvs-button:checked {
+  background-color: rgba(61, 89, 161, 0.16);
+  border-color: #3d59a1;
+}
+
+button.mvs-button.accent {
+  background-color: #3d59a1;
+  border-color: #3d59a1;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+button.mvs-button.accent:hover {
+  background-color: #4a6ab8;
+}
+
+button.mvs-button.danger {
+  color: #c4344f;
+  border-color: #f0c3cd;
+}
+
+button.mvs-button.danger:hover {
+  background-color: rgba(196, 52, 79, 0.10);
+}
+
+entry,
+spinbutton,
+combobox button,
+searchentry {
+  background-image: none;
+  background-color: #ffffff;
+  border: 1px solid #d3d9ec;
+  border-radius: 9px;
+  color: #1f2335;
+  padding: 6px 10px;
+}
+
+entry:focus,
+spinbutton:focus,
+searchentry:focus {
+  border-color: #3d59a1;
+}
+
+switch {
+  background-color: #d3d9ec;
+  border: 1px solid #c3cce4;
+  border-radius: 999px;
+}
+
+switch:checked {
+  background-color: #3d59a1;
+  border-color: #3d59a1;
+}
+
+switch slider {
+  background-color: #ffffff;
+  border-radius: 999px;
+  min-width: 18px;
+  min-height: 18px;
+}
+
+scale trough {
+  background-color: #dde3f2;
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+scale highlight {
+  background-color: #3d59a1;
+  border-radius: 999px;
+}
+
+scale slider {
+  background-color: #ffffff;
+  border: 1px solid #c3cce4;
+  border-radius: 999px;
+  min-width: 14px;
+  min-height: 14px;
+}
+
+progressbar trough {
+  background-color: #dde3f2;
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+progressbar progress {
+  background-color: #3d59a1;
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+levelbar block.filled {
+  background-color: #3d59a1;
+  border-radius: 4px;
+}
+
+.mvs-log-wrap {
+  border: 1px solid #e2e6f2;
+  border-radius: 12px;
+  background-color: #f7f9ff;
+}
+
+.mvs-log,
+.mvs-log text {
+  background-color: #f7f9ff;
+  color: #2b3350;
+}
+
+.mvs-log text {
+  font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  font-size: 12px;
+}
+
+treeview.view {
+  background-color: #ffffff;
+  color: #1f2335;
+  border: none;
+}
+
+treeview.view:selected {
+  background-color: rgba(61, 89, 161, 0.16);
+  color: #16161e;
+}
+
+treeview.view header button {
+  background-image: none;
+  background-color: #f2f4fb;
+  color: #6b7394;
+  border: none;
+  border-bottom: 1px solid #e2e6f2;
+  padding: 6px 8px;
+  font-weight: 600;
+}
+
+list {
+  background-color: transparent;
+}
+
+scrollbar {
+  background-color: transparent;
+  border: none;
+}
+
+scrollbar slider {
+  background-color: #c3cce4;
+  border-radius: 999px;
+  min-width: 8px;
+  min-height: 8px;
+}
+
+scrollbar slider:hover {
+  background-color: #a9b4d4;
+}
+
+tooltip {
+  background-color: #ffffff;
+  color: #1f2335;
+  border: 1px solid #d3d9ec;
+  border-radius: 8px;
+}
+
+menu,
+.menu,
+popover {
+  background-color: #ffffff;
+  border: 1px solid #d3d9ec;
+  border-radius: 12px;
+  color: #1f2335;
+}
+
+menu menuitem:hover,
+popover list row:hover {
+  background-color: rgba(61, 89, 161, 0.12);
+}
+
+separator {
+  background-color: #e2e6f2;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+checkbutton check {
+  border: 1px solid #c3cce4;
+  border-radius: 5px;
+  background-color: #ffffff;
+}
+
+checkbutton check:checked {
+  background-color: #3d59a1;
+  border-color: #3d59a1;
+  color: #ffffff;
+}
+
+radiobutton radio {
+  border: 1px solid #c3cce4;
+  border-radius: 999px;
+  background-color: #ffffff;
+}
+
+radiobutton radio:checked {
+  background-color: #3d59a1;
+  border-color: #3d59a1;
+}

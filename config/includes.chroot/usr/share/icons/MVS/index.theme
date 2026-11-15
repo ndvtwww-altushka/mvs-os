@@ -1,0 +1,24 @@
+[Icon Theme]
+Name=MVS
+Name[ru]=MVS
+Comment=MVS OS application icons
+Comment[ru]=Иконки приложений MVS OS
+Inherits=Papirus-Dark,Papirus,Adwaita,hicolor
+Example=mvs-hub
+
+# Тема содержит только фирменные иконки приложений MVS; всё остальное
+# берётся из Papirus/Adwaita через Inherits. Так набор остаётся маленьким
+# и не ломает чужие программы.
+Directories=apps/scalable,apps/64
+
+[apps/scalable]
+Size=64
+MinSize=16
+MaxSize=512
+Context=Applications
+Type=Scalable
+
+[apps/64]
+Size=64
+Context=Applications
+Type=Fixed

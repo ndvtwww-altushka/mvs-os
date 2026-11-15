@@ -1,0 +1,117 @@
+#!/bin/sh
+# MVS OS 1.0 «Aurora» — брендинг и права внутри chroot.
+#
+# Выполняется live-build'ом после установки пакетов. Здесь только то,
+# что нельзя положить готовым файлом: права, кэши, выбор темы Plymouth,
+# включение служб.
+set -e
+
+echo "▸ MVS OS: брендинг"
+
+# --- имя системы -----------------------------------------------------------
+printf 'mvs-os\n' > /etc/hostname
+printf 'PRETTY_HOSTNAME=MVS OS\nICON_NAME=computer\n' > /etc/machine-info
+
+# --- приветствие в консоли -------------------------------------------------
+cat > /etc/motd <<'MOTD'
+
+  MVS OS 1.0 «Aurora» (Live)
+
+  Система работает с флешки: диск компьютера не изменяется.
+  Установка на диск — ярлык «Установить MVS OS» на рабочем столе.
+  Приложения — в меню «Пуск» на нижней панели.
+
+MOTD
+
+# --- права на приложения MVS ----------------------------------------------
+# В репозитории на FAT/exFAT права не хранятся, поэтому выставляем здесь.
+chmod 755 /usr/local/bin/mvs-* 2>/dev/null || true
+chmod 755 /usr/local/share/mvs-os/games/*.sh 2>/dev/null || true
+chmod 644 /usr/lib/mvs/mvsui.py 2>/dev/null || true
+chmod 644 /usr/lib/mvs/apps/*.py 2>/dev/null || true
+
+# Ярлыки на рабочем столе должны быть исполняемыми, иначе XFCE спросит
+# «доверять ли файлу?» при первом клике.
+chmod 755 /etc/skel/Desktop/*.desktop 2>/dev/null || true
+
+# --- вход ------------------------------------------------------------------
+# Автологин Live настраивает только наш файл; чужие убираем, чтобы
+# не оказалось двух разных имён пользователя.
+rm -f /etc/lightdm/lightdm.conf.d/20-live-config.conf 2>/dev/null || true
+rm -f /etc/lightdm/lightdm.conf.d/20-debian-live.conf 2>/dev/null || true
+chmod 644 /etc/lightdm/lightdm.conf.d/*.conf 2>/dev/null || true
+chmod 644 /etc/lightdm/lightdm-gtk-greeter.conf.d/*.conf 2>/dev/null || true
+
+# --- локали ----------------------------------------------------------------
+if [ -f /etc/locale.gen ]; then
+    grep -q '^ru_RU.UTF-8' /etc/locale.gen || printf 'ru_RU.UTF-8 UTF-8\n' >> /etc/locale.gen
+    grep -q '^en_US.UTF-8' /etc/locale.gen || printf 'en_US.UTF-8 UTF-8\n' >> /etc/locale.gen
+fi
+if command -v locale-gen >/dev/null 2>&1; then
+    locale-gen >/dev/null 2>&1 || echo "  предупреждение: locale-gen завершился с ошибкой"
+fi
+
+# --- оформление ------------------------------------------------------------
+chmod 644 /usr/share/backgrounds/* 2>/dev/null || true
+chmod 644 /usr/share/pixmaps/mvs-logo.svg 2>/dev/null || true
+chmod 644 /usr/share/icons/MVS/apps/*/*.svg 2>/dev/null || true
+
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t /usr/share/icons/MVS >/dev/null 2>&1 \
+        || echo "  предупреждение: кэш иконок MVS не собран"
+fi
+
+# --- экран загрузки Plymouth ----------------------------------------------
+if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+    if [ -f /usr/share/plymouth/themes/mvs/mvs.plymouth ]; then
+        plymouth-set-default-theme mvs >/dev/null 2>&1 \
+            || echo "  предупреждение: тема Plymouth mvs не выбрана"
+    fi
+fi
+
+# Тема Plymouth попадает в initramfs только при его пересборке.
+if command -v update-initramfs >/dev/null 2>&1; then
+    update-initramfs -u -k all >/dev/null 2>&1 \
+        || echo "  предупреждение: initramfs не пересобран (plymouth может не показаться)"
+fi
+
+# --- службы ----------------------------------------------------------------
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl enable lightdm.service >/dev/null 2>&1 || true
+    systemctl enable NetworkManager.service >/dev/null 2>&1 || true
+    systemctl enable bluetooth.service >/dev/null 2>&1 || true
+    systemctl enable apparmor.service >/dev/null 2>&1 || true
+    systemctl enable ufw.service >/dev/null 2>&1 || true
+fi
+
+# --- межсетевой экран: политика по умолчанию -----------------------------
+# Сам ufw включается в установленной системе (Calamares, live-admin.conf);
+# в Live он тоже включён, но входящие и так закрыты политикой DROP.
+if [ -f /etc/default/ufw ]; then
+    sed -i 's/^DEFAULT_INPUT_POLICY=.*/DEFAULT_INPUT_POLICY="DROP"/' /etc/default/ufw
+    sed -i 's/^DEFAULT_OUTPUT_POLICY=.*/DEFAULT_OUTPUT_POLICY="ACCEPT"/' /etc/default/ufw
+fi
+if [ -f /etc/ufw/ufw.conf ]; then
+    sed -i 's/^ENABLED=.*/ENABLED=yes/' /etc/ufw/ufw.conf
+fi
+
+# mDNS нужен Avahi, чтобы находить сетевые принтеры и сканеры. Это
+# единственная входящая дыра, которую MVS открывает сама; остальное
+# по-прежнему DROP.
+if command -v ufw >/dev/null 2>&1; then
+    ufw allow 5353/udp comment 'mDNS (Avahi)' >/dev/null 2>&1 \
+        || echo "  предупреждение: не удалось добавить правило mDNS"
+fi
+
+# --- меню и MIME -----------------------------------------------------------
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database -q /usr/share/applications >/dev/null 2>&1 || true
+fi
+if command -v update-mime-database >/dev/null 2>&1; then
+    update-mime-database /usr/share/mime >/dev/null 2>&1 || true
+fi
+
+# --- домашняя папка по умолчанию -----------------------------------------
+chown -R root:root /etc/skel 2>/dev/null || true
+
+echo "▸ MVS OS: брендинг готов"

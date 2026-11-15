@@ -1,0 +1,11 @@
+[Configuration]
+# MVS Files: удаление — в корзину с подтверждением, без «тихого» rm.
+MiscUseTrash=TRUE
+MiscConfirmDelete=TRUE
+MiscSingleClick=FALSE
+MiscThumbnailerEnabled=TRUE
+MiscWideSpacing=FALSE
+MiscSmallerToolbar=TRUE
+MiscRememberPosition=TRUE
+LastShowHidden=FALSE
+LastView=ThunarDetailedView

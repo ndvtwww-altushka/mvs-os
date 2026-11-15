@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Terminal
+Comment=Командная строка
+Exec=mvs-terminal
+Icon=mvs-terminal
+Terminal=false
+StartupNotify=true
+Categories=System;

@@ -1,0 +1,50 @@
+#!/bin/sh
+# MVS OS 1.0 — права администратора в Live-режиме.
+#
+# ВАЖНО: это единственное место, где MVS OS разрешает административные
+# действия без пароля. Правила действуют только в Live-системе и удаляются
+# установщиком (Calamares → модуль shellprocess → live-admin.conf).
+# В установленной системе работает обычный sudo с паролем пользователя.
+
+set -e
+
+echo "▸ MVS OS: правила Live-режима"
+
+install -d -m 755 /etc/sudoers.d
+install -d -m 755 /etc/polkit-1/rules.d
+
+# --- sudo только для пользователя mvs в Live ------------------------------
+cat > /etc/sudoers.d/90-mvs-live <<'EOF'
+# MVS OS Live: демонстрационный пользователь mvs.
+# Установщик удаляет этот файл; в установленной системе его быть не должно.
+mvs ALL=(ALL) NOPASSWD: ALL
+EOF
+chmod 440 /etc/sudoers.d/90-mvs-live
+
+# Синтаксис проверяем сразу: битый sudoers ломает систему.
+if command -v visudo >/dev/null 2>&1; then
+    visudo -cf /etc/sudoers.d/90-mvs-live
+    visudo -c
+fi
+
+# --- PolicyKit для графических программ в Live ----------------------------
+cat > /etc/polkit-1/rules.d/49-mvs-live.rules <<'EOF'
+// MVS OS Live: пользователь mvs получает административные действия
+// без отдельного пароля. Файл удаляется установщиком.
+polkit.addRule(function(action, subject) {
+    if (subject.user == "mvs" && subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+chmod 644 /etc/polkit-1/rules.d/49-mvs-live.rules
+
+# --- запрет входа root в графическую сессию -------------------------------
+# Даже в Live root не должен логиниться в XFCE: для демонстрации хватает mvs.
+if [ -f /etc/lightdm/lightdm.conf ]; then
+    if ! grep -q '^allow-root' /etc/lightdm/lightdm.conf; then
+        printf '\n[Seat:*]\nallow-root=false\n' >> /etc/lightdm/lightdm.conf
+    fi
+fi
+
+echo "▸ MVS OS: правила Live-режима готовы (sudo без пароля для mvs)"

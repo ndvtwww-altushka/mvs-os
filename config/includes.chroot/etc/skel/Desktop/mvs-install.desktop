@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Установить MVS OS
+Comment=Поставить систему на диск
+Exec=mvs-install
+Icon=mvs-install
+Terminal=false
+StartupNotify=true
+Categories=System;

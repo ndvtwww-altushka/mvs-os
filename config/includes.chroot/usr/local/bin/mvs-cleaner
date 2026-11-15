@@ -1,0 +1,3 @@
+#!/bin/sh
+# MVS OS — приложение MVS cleaner.
+exec python3 /usr/lib/mvs/apps/mvs_cleaner.py "$@"

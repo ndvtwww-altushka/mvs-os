@@ -1,0 +1,3 @@
+#!/bin/sh
+# MVS OS — MVS Terminal: терминал XFCE с профилем MVS.
+exec xfce4-terminal --title="MVS Terminal" --geometry=100x30 "$@"

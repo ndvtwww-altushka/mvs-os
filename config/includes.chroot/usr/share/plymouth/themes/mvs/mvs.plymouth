@@ -1,0 +1,17 @@
+[Plymouth Theme]
+Name=MVS OS
+Description=MVS OS 1.0 «Aurora» — загрузка
+ModuleName=two-step
+
+[two-step]
+# Фирменный градиент MVS. Логотип и полоса прогресса появляются, если
+# в папке темы есть готовые изображения; без них остаётся градиент —
+# это безопаснее, чем падать в чёрный экран при загрузке.
+ImageDir=/usr/share/plymouth/themes/mvs
+UseFirmwareBackground=false
+HorizontalAlignment=.5
+VerticalAlignment=.5
+Transition=none
+TransitionDuration=0.0
+BackgroundStartColor=0x0e0e17
+BackgroundEndColor=0x1a1b26

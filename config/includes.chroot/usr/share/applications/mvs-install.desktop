@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Установить MVS OS
+Comment=Установка системы на диск (Calamares)
+Comment[en]=Install MVS OS to disk (Calamares)
+Exec=mvs-install
+Icon=mvs-install
+Terminal=false
+StartupNotify=true
+Categories=System;Installer;
+Keywords=mvs;install;установка;calamares;

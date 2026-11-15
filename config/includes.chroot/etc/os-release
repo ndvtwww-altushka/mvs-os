@@ -1,0 +1,11 @@
+PRETTY_NAME="MVS OS 1.0 (Live)"
+NAME="MVS OS"
+VERSION_ID="1.0"
+VERSION="1.0 «Aurora» (Live)"
+VERSION_CODENAME=bookworm
+ID=mvs
+ID_LIKE=debian
+HOME_URL="https://github.com/"
+MVS_VERSION="1.0"
+MVS_EDITION="Aurora"
+MVS_MODE="live"

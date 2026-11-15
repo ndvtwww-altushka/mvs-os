@@ -1,0 +1,18 @@
+# MVS OS — политика apt.
+#
+# Главное: не шифровать ошибки и не принимать неподписанные пакеты.
+# apt проверяет подписи Release/InRelease всегда; здесь это зафиксировано
+# явно, чтобы настройку нельзя было «случайно» ослабить.
+
+APT::Get::AllowUnauthenticated "false";
+APT::Get::Show-Upgraded "true";
+Acquire::AllowInsecureRepositories "false";
+Acquire::AllowDowngradeToInsecureRepositories "false";
+
+# Не тянуть Recommends: ISO и установленная система остаются компактными.
+# Все нужные пакеты перечислены в config/package-lists явно.
+APT::Install-Recommends "false";
+APT::Install-Suggests "false";
+
+# Чистить скачанные .deb после установки: меньше мусора на диске.
+APT::Keep-Downloaded-Packages "false";

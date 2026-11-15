@@ -1,0 +1,263 @@
+name: MVS OS — сборка ISO
+
+# Сборка запускается на каждый push в main, на теги v* и вручную
+# (Actions → Run workflow). ISO собирается в Debian-окружении runner'а.
+# В ручном запуске можно сразу опубликовать GitHub Release.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Опубликовать GitHub Release с ISO"
+        type: boolean
+        default: false
+      release_tag:
+        description: "Тег релиза (пусто — v1.0)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mvs-os-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERSION: "1.0"
+
+jobs:
+  # ------------------------------------------------------------------ проверки
+  checks:
+    name: Статические проверки
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Зависимости проверок
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-yaml curl xz-utils
+
+      - name: Имена пакетов в архиве Debian bookworm
+        run: sh tools/check-packages.sh
+
+      - name: Скрипты, XML, .desktop, списки пакетов
+        run: sh ./check.sh
+
+      - name: Python — синтаксис всех приложений MVS
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import sys
+
+          bad = 0
+          for path in sorted(pathlib.Path("config").rglob("*.py")):
+              source = path.read_text(encoding="utf-8")
+              try:
+                  compile(source, str(path), "exec")
+              except SyntaxError as exc:
+                  print("%s:%s: %s" % (path, exc.lineno, exc.msg))
+                  bad += 1
+          print("Python: файлов проверено — %d, ошибок — %d" % (
+              len(list(pathlib.Path("config").rglob("*.py"))), bad))
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: JSON (наборы MVS Store)
+        run: |
+          python3 - <<'PY'
+          import json
+          import pathlib
+
+          for path in sorted(pathlib.Path("config").rglob("*.json")):
+              with path.open(encoding="utf-8") as handle:
+                  json.load(handle)
+              print("ok  %s" % path)
+          PY
+
+      - name: YAML (Calamares и branding)
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import sys
+
+          import yaml
+
+          roots = [
+              pathlib.Path("config/includes.chroot/etc/calamares"),
+              pathlib.Path("config/includes.chroot/usr/share/calamares/branding"),
+          ]
+          bad = 0
+          count = 0
+          for root in roots:
+              for path in sorted(root.rglob("*")):
+                  if path.suffix not in (".conf", ".desc"):
+                      continue
+                  count += 1
+                  try:
+                      with path.open(encoding="utf-8") as handle:
+                          yaml.safe_load(handle)
+                  except yaml.YAMLError as exc:
+                      print("FAIL %s: %s" % (path, exc))
+                      bad += 1
+                  else:
+                      print("ok  %s" % path)
+          print("YAML: файлов — %d, ошибок — %d" % (count, bad))
+          sys.exit(1 if bad else 0)
+          PY
+
+  # ------------------------------------------------------------------ сборка
+  build:
+    name: Сборка ISO
+    needs: checks
+    # Pull request проверяет только статику: полная сборка идёт больше часа
+    # и не должна запускаться на каждое изменение в PR.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Освободить место на диске
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost || true
+          sudo apt-get clean
+          df -h /
+
+      - name: Зависимости сборки
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            live-build debootstrap debian-archive-keyring fakeroot squashfs-tools xorriso \
+            syslinux syslinux-common isolinux syslinux-efi \
+            grub-efi-amd64-bin grub-pc-bin \
+            mtools dosfstools file rsync wget xz-utils bzip2 cpio apt-utils
+
+      - name: Версии инструментов (для лога)
+        run: |
+          lb --version || true
+          xorriso --version 2>&1 | head -n 1 || true
+          python3 --version
+
+      - name: Сборка
+        run: sudo sh ./build.sh
+
+      - name: Размер и возможность публикации
+        id: size
+        run: |
+          ISO="MVS-OS-${VERSION}-amd64.iso"
+          test -f "$ISO" || { echo "::error::ISO не создан"; exit 1; }
+          BYTES=$(stat -c%s "$ISO")
+          echo "bytes=$BYTES" >> "$GITHUB_OUTPUT"
+          echo "Размер ISO: $((BYTES / 1024 / 1024)) МБ"
+          df -h /
+          if [ "$BYTES" -gt 2000000000 ]; then
+            echo "::warning::ISO больше 2 ГБ — GitHub Release не примет файл. Артефакт останется в Actions."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Сохранить журнал сборки при ошибке
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: |
+            build/*.log
+            build/chroot/debootstrap/debootstrap.log
+          if-no-files-found: ignore
+
+      - name: Артефакт ISO
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvs-os-iso
+          path: |
+            MVS-OS-${{ env.VERSION }}-amd64.iso
+            MVS-OS-${{ env.VERSION }}-amd64.iso.sha256
+            SHA256SUMS
+            BUILD-INFO-${{ env.VERSION }}.txt
+            PACKAGES-${{ env.VERSION }}.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Публикация релиза
+        # Тег v* или ручной запуск с publish_release=true.
+        if: |
+          steps.size.outputs.publish == 'true' &&
+          (startsWith(github.ref, 'refs/tags/') || inputs.publish_release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || format('v{0}', env.VERSION) }}
+          name: MVS OS ${{ env.VERSION }} «Aurora»
+          draft: false
+          generate_release_notes: true
+          files: |
+            MVS-OS-${{ env.VERSION }}-amd64.iso
+            MVS-OS-${{ env.VERSION }}-amd64.iso.sha256
+            SHA256SUMS
+            BUILD-INFO-${{ env.VERSION }}.txt
+            PACKAGES-${{ env.VERSION }}.txt
+
+      - name: ISO больше лимита GitHub
+        if: |
+          steps.size.outputs.publish != 'true' &&
+          (startsWith(github.ref, 'refs/tags/') || inputs.publish_release)
+        run: |
+          echo "::warning::Релиз не опубликован: ISO больше лимита GitHub (2 ГБ)."
+          echo "ISO доступен как артефакт сборки; SHA256SUMS можно выложить вручную."
+
+  # --------------------------------------------------- загрузка в QEMU (дым)
+  qemu:
+    name: QEMU smoke (информационный)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    # Тест загрузки не блокирует выпуск: он проверяет, что ISO вообще
+    # стартует и выдаёт графику, но не заменяет ручную проверку на железе.
+    continue-on-error: true
+    env:
+      # Даём XFCE время дойти до рабочего стола, а не только до GRUB.
+      MVS_QEMU_BOOT: "240"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Скачать ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: mvs-os-iso
+
+      - name: Установить QEMU и OVMF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qemu-system-x86 ovmf
+
+      - name: Загрузка ISO (BIOS) и снимок экрана
+        continue-on-error: true
+        run: python3 tests/qemu_smoke.py "MVS-OS-${VERSION}-amd64.iso"
+
+      - name: Загрузка ISO (UEFI) и снимок экрана
+        continue-on-error: true
+        run: python3 tests/qemu_smoke.py --uefi "MVS-OS-${VERSION}-amd64.iso"
+
+      - name: Сохранить снимки и журналы
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-smoke
+          path: |
+            qemu*.log
+            serial*.log
+            boot*.ppm
+            ovmf-vars*.fd
+          if-no-files-found: ignore

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Welcome
+Comment=Первое знакомство с системой
+Exec=mvs-welcome-once
+Icon=mvs-welcome
+Terminal=false
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=2

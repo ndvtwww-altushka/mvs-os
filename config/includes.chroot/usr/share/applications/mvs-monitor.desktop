@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Monitor
+Comment=Процессор, память, сеть и процессы
+Comment[en]=MVS Monitor for MVS OS
+Exec=mvs-monitor
+Icon=mvs-monitor
+Terminal=false
+StartupNotify=true
+Categories=System;Monitor;
+Keywords=mvs;monitor;монитор;процессы;

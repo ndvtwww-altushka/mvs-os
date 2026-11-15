@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS About
+Comment=Версия, оборудование и лицензии
+Comment[en]=MVS About for MVS OS
+Exec=mvs-about
+Icon=mvs-about
+Terminal=false
+StartupNotify=true
+Categories=System;Settings;
+Keywords=mvs;about;о системе;

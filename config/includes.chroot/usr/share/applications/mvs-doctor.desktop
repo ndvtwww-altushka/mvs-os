@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Doctor
+Comment=Проверка диска, памяти, служб и защиты
+Comment[en]=MVS Doctor for MVS OS
+Exec=mvs-doctor
+Icon=mvs-doctor
+Terminal=false
+StartupNotify=true
+Categories=System;Monitor;
+Keywords=mvs;doctor;диагностика;проверка;система;

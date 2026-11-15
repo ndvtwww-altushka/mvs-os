@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Games
+Comment=Пять мини-игр MVS OS
+Comment[en]=MVS Games for MVS OS
+Exec=mvs-games
+Icon=mvs-games
+Terminal=false
+StartupNotify=true
+Categories=Game;LogicGame;
+Keywords=mvs;games;игры;2048;тетрис;

@@ -1,0 +1,405 @@
+/* MVS OS 1.0 «Aurora» — тёмная тема приложений MVS.
+   Подключается всеми MVS-приложениями поверх системной темы. */
+
+/* --- основа ---------------------------------------------------------------- */
+window {
+  background-color: #1a1b26;
+  color: #c0caf5;
+}
+
+headerbar {
+  background-image: none;
+  background-color: #16161e;
+  border: none;
+  border-bottom: 1px solid #262b40;
+  box-shadow: none;
+  min-height: 46px;
+  padding: 0 8px;
+}
+
+headerbar .title {
+  font-weight: 600;
+  color: #c0caf5;
+}
+
+headerbar .subtitle {
+  color: #6b7394;
+  font-size: 12px;
+}
+
+/* --- текст ----------------------------------------------------------------- */
+label {
+  color: #c0caf5;
+}
+
+.mvs-h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #e6e9f5;
+}
+
+.mvs-h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #c0caf5;
+}
+
+.mvs-subtle {
+  font-size: 12px;
+  color: #7f8bb0;
+}
+
+.mvs-big {
+  font-size: 30px;
+  font-weight: 700;
+  color: #7aa2f7;
+}
+
+.mvs-nav {
+  font-size: 13px;
+  color: #c0caf5;
+}
+
+.mvs-accent {
+  color: #7aa2f7;
+}
+
+.mvs-dim {
+  color: #565f89;
+}
+
+.danger {
+  color: #f7768e;
+}
+
+.mvs-ok {
+  color: #9ece6a;
+  font-weight: 600;
+}
+
+.mvs-warn {
+  color: #e0af68;
+  font-weight: 600;
+}
+
+.mvs-bad {
+  color: #f7768e;
+  font-weight: 600;
+}
+
+/* --- боковое меню ---------------------------------------------------------- */
+.mvs-sidebar {
+  background-color: #16161e;
+  border-right: 1px solid #262b40;
+  padding: 8px 0;
+}
+
+.mvs-sidebar row {
+  border-radius: 10px;
+  margin: 1px 8px;
+  padding: 0;
+}
+
+.mvs-sidebar row:hover {
+  background-color: #1f2335;
+}
+
+.mvs-sidebar row:selected {
+  background-image: none;
+  background-color: rgba(122, 162, 247, 0.16);
+}
+
+.mvs-sidebar row:selected label {
+  color: #c0caf5;
+  font-weight: 600;
+}
+
+/* --- карточки -------------------------------------------------------------- */
+.card {
+  background-color: #1f2335;
+  border: 1px solid #262b40;
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.card:hover {
+  border-color: #2f3650;
+}
+
+.mvs-tile {
+  background-color: #1f2335;
+  border: 1px solid #262b40;
+  border-radius: 14px;
+  padding: 14px;
+  transition: 120ms;
+}
+
+.mvs-tile:hover {
+  background-color: #242942;
+  border-color: #3b4261;
+}
+
+.mvs-sep {
+  background-color: #262b40;
+  min-height: 1px;
+  margin: 4px 0;
+}
+
+/* --- кнопки --------------------------------------------------------------- */
+button.mvs-button {
+  background-image: none;
+  background-color: #24283b;
+  border: 1px solid #3b4261;
+  border-radius: 9px;
+  color: #c0caf5;
+  padding: 7px 15px;
+  font-weight: 500;
+}
+
+button.mvs-button:hover {
+  background-color: #2c3250;
+  border-color: #4a5480;
+}
+
+button.mvs-button:active,
+button.mvs-button:checked {
+  background-color: rgba(122, 162, 247, 0.22);
+  border-color: #7aa2f7;
+}
+
+button.mvs-button.accent {
+  background-color: #7aa2f7;
+  border-color: #7aa2f7;
+  color: #16161e;
+  font-weight: 600;
+}
+
+button.mvs-button.accent:hover {
+  background-color: #8fb2ff;
+}
+
+button.mvs-button.danger {
+  color: #f7768e;
+  border-color: #5a2b3a;
+}
+
+button.mvs-button.danger:hover {
+  background-color: rgba(247, 118, 142, 0.16);
+}
+
+button.mvs-button:disabled {
+  color: #565f89;
+  background-color: #1c1f2e;
+  border-color: #262b40;
+}
+
+/* --- поля ввода ----------------------------------------------------------- */
+entry,
+spinbutton,
+combobox button,
+searchentry {
+  background-image: none;
+  background-color: #11121a;
+  border: 1px solid #2f3650;
+  border-radius: 9px;
+  color: #c0caf5;
+  padding: 6px 10px;
+}
+
+entry:focus,
+spinbutton:focus,
+searchentry:focus {
+  border-color: #7aa2f7;
+}
+
+/* --- переключатели и ползунки -------------------------------------------- */
+switch {
+  background-color: #2a2f45;
+  border: 1px solid #3b4261;
+  border-radius: 999px;
+}
+
+switch:checked {
+  background-color: #7aa2f7;
+  border-color: #7aa2f7;
+}
+
+switch slider {
+  background-color: #c0caf5;
+  border-radius: 999px;
+  min-width: 18px;
+  min-height: 18px;
+}
+
+switch:checked slider {
+  background-color: #16161e;
+}
+
+scale trough {
+  background-color: #262b40;
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+scale highlight {
+  background-color: #7aa2f7;
+  border-radius: 999px;
+}
+
+scale slider {
+  background-color: #c0caf5;
+  border: none;
+  border-radius: 999px;
+  min-width: 14px;
+  min-height: 14px;
+}
+
+progressbar trough {
+  background-color: #262b40;
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+progressbar progress {
+  background-color: #7aa2f7;
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+levelbar block.filled {
+  background-color: #7aa2f7;
+  border-radius: 4px;
+}
+
+levelbar block.low {
+  background-color: #e0af68;
+}
+
+levelbar block.high,
+levelbar block.full {
+  background-color: #f7768e;
+}
+
+/* --- журнал --------------------------------------------------------------- */
+.mvs-log-wrap {
+  border: 1px solid #262b40;
+  border-radius: 12px;
+  background-color: #11121a;
+}
+
+.mvs-log,
+.mvs-log text {
+  background-color: #11121a;
+  color: #a9b1d6;
+}
+
+.mvs-log text {
+  font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  font-size: 12px;
+}
+
+/* --- списки и таблицы ----------------------------------------------------- */
+treeview.view {
+  background-color: #16161e;
+  color: #c0caf5;
+  border: none;
+}
+
+treeview.view:selected {
+  background-color: rgba(122, 162, 247, 0.22);
+  color: #e6e9f5;
+}
+
+treeview.view header button {
+  background-image: none;
+  background-color: #1f2335;
+  color: #7f8bb0;
+  border: none;
+  border-bottom: 1px solid #262b40;
+  padding: 6px 8px;
+  font-weight: 600;
+}
+
+list {
+  background-color: transparent;
+}
+
+list row {
+  border-radius: 10px;
+}
+
+/* --- прокрутка ------------------------------------------------------------ */
+scrollbar {
+  background-color: transparent;
+  border: none;
+}
+
+scrollbar slider {
+  background-color: #3b4261;
+  border-radius: 999px;
+  min-width: 8px;
+  min-height: 8px;
+}
+
+scrollbar slider:hover {
+  background-color: #4a5480;
+}
+
+/* --- прочее --------------------------------------------------------------- */
+tooltip {
+  background-color: #24283b;
+  color: #c0caf5;
+  border: 1px solid #3b4261;
+  border-radius: 8px;
+}
+
+menu,
+.menu,
+popover {
+  background-color: #1f2335;
+  border: 1px solid #2f3650;
+  border-radius: 12px;
+  color: #c0caf5;
+}
+
+menu menuitem:hover,
+popover list row:hover {
+  background-color: rgba(122, 162, 247, 0.16);
+}
+
+separator {
+  background-color: #262b40;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+checkbutton check {
+  border: 1px solid #3b4261;
+  border-radius: 5px;
+  background-color: #11121a;
+}
+
+checkbutton check:checked {
+  background-color: #7aa2f7;
+  border-color: #7aa2f7;
+  color: #16161e;
+}
+
+radiobutton radio {
+  border: 1px solid #3b4261;
+  border-radius: 999px;
+  background-color: #11121a;
+}
+
+radiobutton radio:checked {
+  background-color: #7aa2f7;
+  border-color: #7aa2f7;
+}
+
+infobar {
+  border-radius: 10px;
+}
+
+combobox arrow {
+  color: #7f8bb0;
+}

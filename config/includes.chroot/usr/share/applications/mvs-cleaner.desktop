@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Cleaner
+Comment=Очистка кэша, журналов и корзины
+Comment[en]=MVS Cleaner for MVS OS
+Exec=mvs-cleaner
+Icon=mvs-cleaner
+Terminal=false
+StartupNotify=true
+Categories=System;FileTools;
+Keywords=mvs;cleaner;очистка;кэш;

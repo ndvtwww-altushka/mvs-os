@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Hub
+Comment=Все приложения системы и быстрый запуск
+Comment[en]=MVS Hub for MVS OS
+Exec=mvs-hub
+Icon=mvs-hub
+Terminal=false
+StartupNotify=true
+Categories=Utility;FileTools;
+Keywords=mvs;hub;apps;программы;

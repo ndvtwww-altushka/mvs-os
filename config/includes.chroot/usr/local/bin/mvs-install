@@ -1,0 +1,40 @@
+#!/bin/sh
+# MVS OS — запуск установщика на диск.
+#
+# Установщик — Calamares: выбор диска, разметка, пользователь, загрузчик.
+# Скрипт только проверяет условия и передаёт управление; ни один диск
+# не изменяется без подтверждения в самом Calamares.
+
+set -eu
+
+SQUASHFS_A=/lib/live/mount/medium/live/filesystem.squashfs
+SQUASHFS_B=/run/live/medium/live/filesystem.squashfs
+
+fail() {
+    printf 'MVS OS: %s\n' "$*" >&2
+    if command -v zenity >/dev/null 2>&1; then
+        zenity --error --title="Установка MVS OS" --width=460 --text="$*" 2>/dev/null || true
+    fi
+    exit 1
+}
+
+# 1. Установка имеет смысл только из Live-системы.
+if [ ! -e "$SQUASHFS_A" ] && [ ! -e "$SQUASHFS_B" ]; then
+    fail "Установщик запускается только с загрузочной флешки MVS OS.
+Система уже установлена на диск — установка из неё недоступна."
+fi
+
+command -v calamares >/dev/null 2>&1 || fail "Не найден Calamares.
+Проверьте пакет calamares в системе."
+
+# 2. Calamares должен работать от root. В Live-режиме polkit разрешает
+#    пользователю mvs административные действия без пароля.
+if [ "$(id -u)" -ne 0 ]; then
+    if command -v pkexec >/dev/null 2>&1; then
+        exec pkexec calamares "$@"
+    fi
+    fail "Нужны права администратора, но pkexec не найден."
+fi
+
+# 3. Запуск. Журнал Calamares: /root/.cache/calamares/session.log
+exec calamares "$@"

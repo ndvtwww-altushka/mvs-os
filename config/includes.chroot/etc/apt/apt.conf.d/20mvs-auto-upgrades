@@ -1,0 +1,11 @@
+# MVS OS — когда apt вообще запускает обновления.
+# Списки пакетов обновляются раз в сутки, установка безопасности — раз в сутки
+# со случайной задержкой, чтобы сотни машин не били по зеркалам одновременно.
+
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::Download-Upgradeable-Packages "1";
+APT::Periodic::AutocleanInterval "7";
+
+# Задержка в минутах: обновления не мешают работе сразу после включения.
+APT::Periodic::RandomSleep "30";

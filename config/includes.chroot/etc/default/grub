@@ -1,0 +1,16 @@
+# MVS OS 1.0 — параметры GRUB для установленной системы.
+#
+# quiet + splash включают экран загрузки Plymouth. Таймаут 3 секунды:
+# успеваешь выбрать другое ядро, но не смотришь меню каждую загрузку.
+
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=3
+GRUB_DISTRIBUTOR="MVS OS"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+GRUB_CMDLINE_LINUX=""
+
+# Искать другие системы (Windows, второй Linux) при обновлении GRUB.
+GRUB_DISABLE_OS_PROBER=false
+
+# Не прятать меню полностью: при проблемах загрузки оно нужно.
+GRUB_TIMEOUT_STYLE=menu

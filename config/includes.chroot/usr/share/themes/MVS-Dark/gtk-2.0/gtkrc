@@ -1,0 +1,15 @@
+# MVS OS 1.0 — GTK 2: подключаем Arc-Dark и перекрашиваем палитру.
+# GTK 2 не умеет @import CSS, поэтому используется include + цветовая схема.
+
+include "/usr/share/themes/Arc-Dark/gtk-2.0/gtkrc"
+
+gtk-color-scheme = "fg_color:#c0caf5\nbg_color:#1a1b26\nbase_color:#16161e\ntext_color:#c0caf5\nselected_bg_color:#7aa2f7\nselected_fg_color:#16161e\ntooltip_bg_color:#24283b\ntooltip_fg_color:#c0caf5\nlink_color:#7aa2f7"
+
+style "mvs-menu" {
+    bg[NORMAL] = "#16161e"
+    fg[NORMAL] = "#c0caf5"
+    bg[SELECTED] = "#7aa2f7"
+    fg[SELECTED] = "#16161e"
+}
+class "GtkMenu" style "mvs-menu"
+class "GtkMenuItem" style "mvs-menu"

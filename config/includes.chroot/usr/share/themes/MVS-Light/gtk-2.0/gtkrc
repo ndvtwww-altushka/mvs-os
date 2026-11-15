@@ -1,0 +1,5 @@
+# MVS OS 1.0 — GTK 2: подключаем Arc и перекрашиваем палитру.
+
+include "/usr/share/themes/Arc/gtk-2.0/gtkrc"
+
+gtk-color-scheme = "fg_color:#1f2335\nbg_color:#f2f4fb\nbase_color:#ffffff\ntext_color:#1f2335\nselected_bg_color:#3d59a1\nselected_fg_color:#ffffff\ntooltip_bg_color:#ffffff\ntooltip_fg_color:#1f2335\nlink_color:#3d59a1"

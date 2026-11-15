@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Games
+Comment=Пять мини-игр
+Exec=mvs-games
+Icon=mvs-games
+Terminal=false
+StartupNotify=true
+Categories=System;

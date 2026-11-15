@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Hub
+Comment=Все приложения системы
+Exec=mvs-hub
+Icon=mvs-hub
+Terminal=false
+StartupNotify=true
+Categories=System;

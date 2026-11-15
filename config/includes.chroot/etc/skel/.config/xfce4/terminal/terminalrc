@@ -1,0 +1,16 @@
+[Configuration]
+FontName=Noto Sans Mono 10
+FontUseSystem=FALSE
+MiscAlwaysShowTabs=FALSE
+MiscBell=FALSE
+MiscCursorBlinks=TRUE
+MiscCursorShape=TERMINAL_CURSOR_SHAPE_BLOCK
+MiscDefaultGeometry=100x30
+MiscHighlightUrls=TRUE
+MiscSlimTabs=TRUE
+MiscScrollOutput=TRUE
+ColorForeground=#c0caf5
+ColorBackground=#16161e
+ColorCursor=#7aa2f7
+ColorBold=#e6e9f5
+ColorPalette=#15161e;#f7768e;#9ece6a;#e0af68;#7aa2f7;#bb9af7;#7dcfff;#a9b1d6;#414868;#f7768e;#9ece6a;#e0af68;#7aa2f7;#bb9af7;#7dcfff;#c0caf5

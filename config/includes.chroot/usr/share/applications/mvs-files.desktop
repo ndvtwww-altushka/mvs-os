@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Files
+Comment=Файлы и папки (Thunar)
+Comment[en]=MVS Files for MVS OS
+Exec=mvs-files
+Icon=mvs-files
+Terminal=false
+StartupNotify=true
+Categories=System;FileManager;
+Keywords=mvs;files;файлы;проводник;

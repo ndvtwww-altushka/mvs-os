@@ -1,0 +1,13 @@
+# MVS OS — базовые правила sudo.
+#
+# Это не «политика для галочки»: именно здесь sudo получает предсказуемый
+# PATH, перестаёт доверять окружению пользователя и ограничивает время,
+# в течение которого пароль уже введён.
+
+Defaults env_reset
+Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Defaults timestamp_timeout=10
+Defaults passwd_tries=3
+Defaults use_pty
+Defaults logfile="/var/log/sudo.log"
+Defaults lecture=once

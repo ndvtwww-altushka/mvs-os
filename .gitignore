@@ -1,0 +1,27 @@
+# сборка live-build
+build/
+cache/
+chroot/
+binary/
+*.iso
+*.iso.sha256
+SHA256SUMS
+BUILD-INFO-*.txt
+*.files
+*.packages
+*.contents
+*.zsync
+
+# артефакты тестов
+qemu.log
+serial.log
+boot.ppm
+
+# python
+__pycache__/
+*.pyc
+
+# мусор редакторов и систем
+.DS_Store
+Thumbs.db
+*.swp

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Welcome
+Comment=Первое знакомство с системой
+Comment[en]=MVS Welcome for MVS OS
+Exec=mvs-welcome
+Icon=mvs-welcome
+Terminal=false
+StartupNotify=true
+Categories=System;Settings;
+Keywords=mvs;welcome;приветствие;
