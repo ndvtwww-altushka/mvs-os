@@ -88,7 +88,9 @@ sudo sh tools/build-local.sh   # зависимости + ISO на Debian 12
 
 Или через GitHub: Actions → **MVS OS — сборка ISO** → Run workflow.
 Записать ISO на флешку: `sudo sh tools/write-usb.sh /dev/sdX`.
-Запустить без перезагрузки: `sh tools/make-vm.sh --install`.
+Посмотреть ISO в окне: `sh tools/make-vm.sh --live`.
+`Alt+Tab` переключает между MVS OS и Linux, клик по окну — назад.
+Установить в виртуальный диск: `sh tools/make-vm.sh --install`.
 Инструкции: [сборка и USB](docs/building.md), [виртуальная машина](docs/vm.md).
 
 ## Сборка и релизы в GitHub

@@ -132,6 +132,15 @@ jobs:
           sudo apt-get clean
           df -h /
 
+      - name: Комплект для запуска в окне
+        # Маленький архив: скрипт QEMU и инструкция. ISO кладётся рядом.
+        run: |
+          mkdir -p vm-kit
+          cp tools/make-vm.sh vm-kit/
+          cp docs/vm.md vm-kit/README.md
+          tar -czf "MVS-OS-${VERSION}-vm-linux.tar.gz" -C vm-kit .
+          ls -lh "MVS-OS-${VERSION}-vm-linux.tar.gz"
+
       - name: Зависимости сборки
         run: |
           sudo apt-get update
@@ -169,6 +178,7 @@ jobs:
           test -f "$ISO" || { echo "::error::ISO не создан"; exit 1; }
           BYTES=$(stat -c%s "$ISO")
           echo "bytes=$BYTES" >> "$GITHUB_OUTPUT"
+          echo "human=$(du -h "$ISO" | cut -f1)" >> "$GITHUB_OUTPUT"
           echo "Размер ISO: $((BYTES / 1024 / 1024)) МБ"
           df -h /
           if [ "$BYTES" -gt 2000000000 ]; then
@@ -196,6 +206,7 @@ jobs:
           path: |
             MVS-OS-${{ env.VERSION }}-amd64.iso
             MVS-OS-${{ env.VERSION }}-amd64.iso.sha256
+            MVS-OS-${{ env.VERSION }}-vm-linux.tar.gz
             SHA256SUMS
             BUILD-INFO-${{ env.VERSION }}.txt
             PACKAGES-${{ env.VERSION }}.txt
@@ -212,10 +223,59 @@ jobs:
           tag_name: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || format('v{0}', env.VERSION) }}
           name: MVS OS ${{ env.VERSION }} «Aurora»
           draft: false
-          generate_release_notes: true
+          body: |
+            MVS OS ${{ env.VERSION }} «Aurora» — live-образ на базе Debian 12
+            (bookworm) с рабочим столом XFCE, приложениями MVS и установщиком
+            Calamares. Загружается в BIOS и UEFI.
+
+            ## Файлы
+
+            - `MVS-OS-${{ env.VERSION }}-amd64.iso` — образ, ${{ steps.size.outputs.human }}
+            - `MVS-OS-${{ env.VERSION }}-amd64.iso.sha256`, `SHA256SUMS` — контрольные суммы
+            - `MVS-OS-${{ env.VERSION }}-vm-linux.tar.gz` — скрипт запуска в окне и инструкция
+            - `BUILD-INFO-${{ env.VERSION }}.txt` — коммит, размер, ядро, число пакетов
+            - `PACKAGES-${{ env.VERSION }}.txt` — полный список пакетов образа
+
+            ## Запустить в окне на Linux
+
+            ```sh
+            sh tools/make-vm.sh --live
+            ```
+
+            QEMU откроет MVS OS в окне. Крестик закрывает виртуальную машину
+            и возвращает в Linux; хост не перезагружается. `Alt+Tab`
+            переключает между MVS OS и Linux, клик по окну — назад.
+            Внутри включены virtio-сеть и видео, iothread и звук — в окне
+            заметно быстрее. Нужен пакет `qemu-system-x86` и желательно
+            доступ к `/dev/kvm`.
+
+            ## Проверка и запись на флешку
+
+            ```sh
+            sha256sum -c SHA256SUMS
+            sudo tools/write-usb.sh /dev/sdX
+            ```
+
+            Или вручную:
+
+            ```sh
+            sudo dd if=MVS-OS-${{ env.VERSION }}-amd64.iso of=/dev/sdX \
+              bs=4M status=progress oflag=sync
+            ```
+
+            ## Что внутри
+
+            - Live-система с автологином и установка на диск через Calamares;
+            - MVS Hub, Control Center, Store, Update, Backup, Monitor, Doctor;
+            - тёмная и светлая темы, иконки MVS, Plymouth, три обоины;
+            - сборка полностью воспроизводится в GitHub Actions.
+
+            Исправления поверх исходников 1.0 перечислены в
+            [CHANGELOG.md](https://github.com/ndvtwww-altushka/mvs-os/blob/main/CHANGELOG.md).
           files: |
             MVS-OS-${{ env.VERSION }}-amd64.iso
             MVS-OS-${{ env.VERSION }}-amd64.iso.sha256
+            MVS-OS-${{ env.VERSION }}-vm-linux.tar.gz
             SHA256SUMS
             BUILD-INFO-${{ env.VERSION }}.txt
             PACKAGES-${{ env.VERSION }}.txt
