@@ -193,7 +193,7 @@ esac
 
 # Окно GTK по умолчанию НЕ захватывает клавиатуру: Alt+Tab обрабатывает
 # рабочий стол Linux, а не гость. MVS_GRAB=1 включает захват — тогда
-# Alt+Tab переключает окна внутри MVS OS, а на хост ведёт Ctrl+Alt.
+# Alt+Tab переключает окна внутри MVS OS, а на хост ведёт Ctrl+Alt+G.
 if [ "$DISPLAY_MODE" = gtk ]; then
     if [ "${MVS_GRAB:-0}" = 1 ]; then
         DISPLAY_ARGS="gtk,grab-on-hover=on"
@@ -309,7 +309,7 @@ esac
 
 printf '\n  Alt+Tab — переключиться на Linux, клик по окну — назад в MVS OS.\n'
 if [ "${MVS_GRAB:-0}" = 1 ]; then
-    printf '  Захват включён: Alt+Tab работает внутри VM, Ctrl+Alt — выход на хост.\n'
+    printf '  Захват включён: Alt+Tab работает внутри VM, Ctrl+Alt+G — выход на хост.\n'
 fi
 printf '  Закрыть окно — выключить VM и вернуться в Linux.\n'
 printf '  Ctrl+Alt+2 → quit → Enter — аварийный выход. Ctrl+Alt+1 — назад.\n\n'
