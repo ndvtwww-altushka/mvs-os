@@ -1,0 +1,84 @@
+name: Публикация готового ISO
+
+# Запасной путь: взять уже собранный и проверенный артефакт mvs-os-iso
+# из указанного запуска и опубликовать его как релиз. Нужен, если
+# публикация в основном workflow не выполнилась, а пересобирать ISO
+# ради тега нет смысла.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "ID запуска сборки (Actions → нужный run → число в адресе)"
+        required: true
+        type: string
+      tag:
+        description: "Тег релиза, например v1.4"
+        required: true
+        type: string
+      codename:
+        description: "Кодовое имя"
+        required: false
+        type: string
+        default: "Aurora Nova"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Опубликовать артефакт
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Скачать ISO из указанного запуска
+        uses: actions/download-artifact@v4
+        with:
+          name: mvs-os-iso
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Проверить файлы и определить версию
+        id: v
+        run: |
+          ISO=$(ls MVS-OS-*-amd64.iso | head -n 1)
+          test -n "$ISO"
+          VERSION=$(printf '%s' "$ISO" | sed 's/^MVS-OS-//; s/-amd64\.iso$//')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "iso=$ISO" >> "$GITHUB_OUTPUT"
+          sha256sum "$ISO" | tee "$ISO.sha256"
+          ls -lh
+
+      - name: Публикация
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: MVS OS ${{ steps.v.outputs.version }} «${{ inputs.codename }}»
+          draft: false
+          body: |
+            MVS OS ${{ steps.v.outputs.version }} «${{ inputs.codename }}».
+
+            ISO собран из репозитория и проверен загрузкой в QEMU
+            (BIOS, UEFI, UEFI + Secure Boot) в запуске
+            `${{ inputs.run_id }}`.
+
+            ## Файлы
+
+            - `${{ steps.v.outputs.iso }}` — образ
+            - `*.sha256`, `SHA256SUMS` — контрольные суммы
+            - `*-vm-linux.tar.gz` — запуск в окне QEMU
+            - `BUILD-INFO-*.txt`, `PACKAGES-*.txt` — сведения о сборке
+
+            ## Проверка и запись
+
+            ```sh
+            sha256sum -c SHA256SUMS
+            sudo tools/write-usb.sh /dev/sdX
+            ```
+          files: |
+            *.iso
+            *.sha256
+            SHA256SUMS
+            *vm-linux.tar.gz
+            BUILD-INFO-*.txt
+            PACKAGES-*.txt
