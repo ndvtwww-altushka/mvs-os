@@ -63,6 +63,10 @@ jobs:
             (BIOS, UEFI, UEFI + Secure Boot) в запуске
             `${{ inputs.run_id }}`.
 
+            В образе исправлен вход в Live: пользователь `mvs` создаётся
+            службой `mvs-live-user` (пароль `live`), раскладка
+            по умолчанию — английская, русская по Alt+Shift.
+
             ## Файлы
 
             - `${{ steps.v.outputs.iso }}` — образ
