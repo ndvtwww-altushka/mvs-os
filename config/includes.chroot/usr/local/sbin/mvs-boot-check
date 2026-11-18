@@ -2,56 +2,119 @@
 # MVS OS — подтверждение, что Live-сеанс действительно поднялся.
 #
 # QEMU-тест не должен принимать меню GRUB за загруженную систему.
-# Поэтому после старта графики этот скрипт проверяет две вещи:
+# Поэтому после старта графики этот скрипт проверяет:
 #   1. пользователь mvs существует (его создаёт mvs-live-user,
 #      а при штатной работе — ещё и live-config + user-setup);
-#   2. у mvs есть процесс сеанса XFCE (автовход сработал).
-# Результат пишется в последовательный порт: MVS_BOOT_OK или MVS_BOOT_FAIL.
-# При ошибке туда же выводится диагностика: без неё причина видна только
-# на экране виртуальной машины, а в CI остаётся пустой serial.log.
+#   2. у mvs есть процесс сеанса XFCE (автовход сработал);
+#   3. запущены оконный менеджер, панель и рабочий стол;
+#   4. приложения MVS импортируются без ошибок.
+#
+# Маркер MVS_BOOT_OK пишется только после этого. Снимок экрана в CI
+# тогда показывает настоящий рабочий стол, а не фон до отрисовки.
+#
 # В установленной системе служба не запускается: нет /etc/mvs-live.
 
 set -u
 
 SERIAL=/dev/ttyS0
 say() { printf '%s\n' "$*" > "$SERIAL" 2>/dev/null || true; }
+diag() { say "MVS_BOOT_DIAG: $*"; }
+
+as_mvs() {
+    runuser -u mvs -- env DISPLAY=:0 XAUTHORITY=/home/mvs/.Xauthority \
+        "$@" 2>&1
+}
+
+have() { pgrep -u mvs -x "$1" >/dev/null 2>&1; }
 
 dump_diagnostics() {
-    say "MVS_BOOT_DIAG: cmdline=$(cat /proc/cmdline 2>/dev/null)"
-    say "MVS_BOOT_DIAG: mvs=$(getent passwd mvs 2>/dev/null || echo 'нет в /etc/passwd')"
-    say "MVS_BOOT_DIAG: user-setup=$(dpkg-query -W -f='${db:Status-Status} ${Version}' user-setup 2>&1)"
-    say "MVS_BOOT_DIAG: live-state=$(ls /var/lib/live/config 2>&1 | tr '\n' ' ')"
-    say "MVS_BOOT_DIAG: lightdm=$(systemctl is-active lightdm.service 2>&1)"
-    say "MVS_BOOT_DIAG: сеансы mvs: $(ps -u mvs -o pid=,comm= 2>&1 | tr '\n' ';')"
+    diag "cmdline=$(cat /proc/cmdline 2>/dev/null)"
+    diag "mvs=$(getent passwd mvs 2>/dev/null || echo 'нет в /etc/passwd')"
+    diag "user-setup=$(dpkg-query -W -f='${db:Status-Status} ${Version}' user-setup 2>&1)"
+    diag "lightdm=$(systemctl is-active lightdm.service 2>&1)"
+    diag "процессы: $(ps -u mvs -o comm= 2>/dev/null | sort -u | tr '\n' ' ')"
+    diag "wm=$(have xfwm4 && echo да || echo нет) panel=$(have xfce4-panel && echo да || echo нет) desktop=$(have xfdesktop && echo да || echo нет)"
+    diag "разрешение: $(as_mvs xrandr --current 2>/dev/null | sed -n 's/.*current \([0-9]* x [0-9]*\).*/\1/p' | head -n 1)"
+    diag "gtk: $(as_mvs python3 -c "import gi; gi.require_version('Gtk','3.0'); from gi.repository import Gtk; print('GTK_OK')" 2>&1 | tail -n 1)"
+    diag "ярлыков на столе: $(ls /home/mvs/Desktop/*.desktop 2>/dev/null | wc -l)"
 
-    # Компоненты live-config пишут только в этот файл, а не в serial.
+    # Ошибки сеанса: сюда XFCE и приложения пишут то, что не видно на экране.
+    if [ -r /home/mvs/.xsession-errors ]; then
+        tail -n 25 /home/mvs/.xsession-errors 2>/dev/null | while IFS= read -r line; do
+            say "MVS_BOOT_DIAG: xsession: $line"
+        done
+    fi
+
     if [ -r /var/log/live/config.log ]; then
-        tail -n 30 /var/log/live/config.log 2>/dev/null | while IFS= read -r line; do
+        tail -n 20 /var/log/live/config.log 2>/dev/null | while IFS= read -r line; do
             say "MVS_BOOT_DIAG: live-log: $line"
         done
-    else
-        say "MVS_BOOT_DIAG: /var/log/live/config.log недоступен"
     fi
 }
 
 user_ok=0
 i=0
-while [ "$i" -lt 150 ]; do
+while [ "$i" -lt 120 ]; do
     if getent passwd mvs >/dev/null 2>&1; then
         user_ok=1
         if ps -u mvs -o comm= 2>/dev/null | grep -qE 'xfce4-session|xfwm4'; then
-            say "MVS_BOOT_OK user=mvs session=xfce"
-            exit 0
+            break
         fi
     fi
     i=$((i + 1))
     sleep 1
 done
 
-if [ "$user_ok" -eq 1 ]; then
-    say "MVS_BOOT_FAIL: пользователь mvs есть, сеанс XFCE не поднялся"
-else
+if [ "$user_ok" -ne 1 ]; then
     say "MVS_BOOT_FAIL: пользователь mvs не создан (mvs-live-user/user-setup)"
+    dump_diagnostics
+    exit 1
 fi
-dump_diagnostics
-exit 1
+
+if ! ps -u mvs -o comm= 2>/dev/null | grep -qE 'xfce4-session|xfwm4'; then
+    say "MVS_BOOT_FAIL: пользователь mvs есть, сеанс XFCE не поднялся"
+    dump_diagnostics
+    exit 1
+fi
+
+# Панель и рабочий стол — это и есть «рабочий стол» для человека.
+# Ждём их появления, но не бесконечно: если их нет, это ошибка, а не
+# повод молча отдать образ.
+i=0
+while [ "$i" -lt 90 ]; do
+    have xfwm4 && have xfce4-panel && have xfdesktop && break
+    i=$((i + 1))
+    sleep 1
+done
+
+wm=нет; panel=нет; desktop=нет
+have xfwm4 && wm=да
+have xfce4-panel && panel=да
+have xfdesktop && desktop=да
+
+if [ "$wm" != да ] || [ "$panel" != да ] || [ "$desktop" != да ]; then
+    say "MVS_BOOT_FAIL: сеанс есть, но рабочий стол неполный (wm=$wm panel=$panel desktop=$desktop)"
+    dump_diagnostics
+    exit 1
+fi
+
+# Даём окнам дорисоваться: снимок экрана в CI берётся сразу после маркера.
+sleep 4
+
+apps_ok=да
+apps_out=$(as_mvs python3 -c "
+import sys
+sys.path.insert(0, '/usr/lib/mvs')
+sys.path.insert(0, '/usr/lib/mvs/apps')
+import mvs_about, mvs_backup, mvs_cleaner, mvs_control, mvs_doctor
+import mvs_games, mvs_hub, mvs_monitor, mvs_quick, mvs_store
+import mvs_update, mvs_welcome
+print('APPS_OK')
+" 2>&1 | tail -n 1)
+[ "$apps_out" = APPS_OK ] || apps_ok=нет
+
+say "MVS_UI_OK wm=$wm panel=$panel desktop=$desktop apps=$apps_ok"
+[ "$apps_ok" = да ] || diag "импорт приложений: $apps_out"
+
+say "MVS_BOOT_OK user=mvs session=xfce ui=ready"
+exit 0

@@ -1,0 +1,22 @@
+{
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "DisablePocket": true,
+    "DisableFeedbackCommands": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "Preferences": {
+      "gfx.webrender.software": true,
+      "layers.acceleration.disabled": true,
+      "webgl.disabled": true,
+      "gfx.canvas.accelerated": false,
+      "media.hardware-video-decoding.enabled": false,
+      "toolkit.cosmeticAnimations.enabled": false,
+      "ui.prefersReducedMotion": 1,
+      "browser.sessionstore.interval": 300000,
+      "browser.tabs.unloadOnLowMemory": true,
+      "browser.cache.memory.capacity": 65536
+    }
+  }
+}

@@ -13,6 +13,9 @@ chmod 755 /usr/local/sbin/mvs-snapshot
 chmod 755 /usr/local/sbin/mvs-live-user
 chmod 755 /usr/local/sbin/mvs-boot-check
 chmod 755 /usr/local/bin/mvs-session-mode
+chmod 755 /usr/local/bin/mvs-app
+chmod 755 /usr/local/sbin/mvs-live-tuning
+chmod 644 /etc/systemd/system/mvs-live-tuning.service
 chmod 644 /etc/xdg/autostart/mvs-session-mode.desktop
 # Ярлыки на рабочем столе должны запускаться без вопроса «недоверенный».
 chmod 755 /etc/skel/Desktop/*.desktop
@@ -37,6 +40,12 @@ ln -sf /etc/systemd/system/mvs-live-user.service \
 install -d -m 755 /etc/systemd/system/graphical.target.wants
 ln -sf /etc/systemd/system/mvs-boot-check.service \
     /etc/systemd/system/graphical.target.wants/mvs-boot-check.service
+
+# Тюнинг Live: zram, swappiness и watchdog. Без него swap в сжатой
+# памяти почти не используется, а vm.swappiness=10 из hardening-файла
+# заставляет систему ждать до последнего.
+ln -sf /etc/systemd/system/mvs-live-tuning.service \
+    /etc/systemd/system/multi-user.target.wants/mvs-live-tuning.service
 
 # Явно включаем графику: в chroot debconf не всегда выбирает LightDM.
 systemctl enable lightdm.service >/dev/null 2>&1 || true

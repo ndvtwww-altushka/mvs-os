@@ -77,7 +77,7 @@ lb config \
     --archive-areas "main contrib non-free non-free-firmware" \
     --binary-images iso-hybrid \
     --bootloaders "syslinux,grub-efi" \
-    --bootappend-live "boot=live components quiet splash loglevel=3 locales=ru_RU.UTF-8 keyboard-layouts=us,ru keyboard-variants=,winkeys timezone=Europe/Moscow username=mvs hostname=mvs-os security=apparmor apparmor=1 console=ttyS0,115200n8 console=tty0" \
+    --bootappend-live "boot=live components quiet loglevel=3 nowatchdog locales=ru_RU.UTF-8 keyboard-layouts=us,ru keyboard-variants=,winkeys timezone=Europe/Moscow username=mvs hostname=mvs-os security=apparmor apparmor=1 console=ttyS0,115200n8 console=tty0" \
     --debian-installer false \
     --iso-application "MVS OS" \
     --iso-preparer "MVS OS" \

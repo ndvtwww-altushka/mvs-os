@@ -1,4 +1,4 @@
-# MVS OS 1.0 «Aurora»
+# MVS OS 1.6 «Aurora Nova»
 
 [![Сборка ISO](https://github.com/ndvtwww-altushka/mvs-os/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/ndvtwww-altushka/mvs-os/actions/workflows/build.yml)
 [![Последний релиз](https://img.shields.io/github/v/release/ndvtwww-altushka/mvs-os?display_name=tag)](https://github.com/ndvtwww-altushka/mvs-os/releases)
@@ -8,9 +8,10 @@
 Не «Debian с обоями» — но и не ядро, написанное с нуля: база Debian
 выбрана осознанно, ради драйверов и стабильности.
 
-**Статус:** исходники 1.0 готовы. ISO собирается в
-[GitHub Actions](https://github.com/ndvtwww-altushka/mvs-os/actions/workflows/build.yml).
-Локальная сборка и запуск на железе в этом окружении не выполнялись —
+**Статус:** ISO 1.6 собирается и проверяется в
+[GitHub Actions](https://github.com/ndvtwww-altushka/mvs-os/actions/workflows/build.yml):
+BIOS, UEFI и Secure Boot, с ожиданием настоящего рабочего стола.
+Установка на диск, снимки и откат проверяются отдельно на железе —
 подробности в [docs/testing.md](docs/testing.md).
 
 ## Что внутри
@@ -19,7 +20,7 @@
 
 - тёмная и светлая темы `MVS-Dark` / `MVS-Light`;
 - набор иконок `MVS` (16 фирменных иконок + Papirus для остального);
-- три обоины и фирменный экран загрузки Plymouth;
+- три обоины и фирменный экран входа;
 - нижняя панель: «Пуск», задачи, трей, уведомления, звук, питание,
   быстрые настройки, часы;
 - экран входа LightDM с фирменным фоном.

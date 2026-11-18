@@ -9,6 +9,10 @@ python3
 python3-gi
 python3-gi-cairo
 python3-cairo
+# gio/gdbus нужны Thunar и xdg-open; без них часть запусков молчалива.
+libglib2.0-bin
+# notify-send: приложение сообщает об ошибке, а не «ничего не произошло».
+libnotify-bin
 gir1.2-gtk-3.0
 gir1.2-glib-2.0
 gir1.2-gdkpixbuf-2.0

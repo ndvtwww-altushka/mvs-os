@@ -1,0 +1,25 @@
+#!/bin/sh
+# MVS OS — настройка Live-системы под отзывчивость.
+#
+# Запускается только в Live (маркер /etc/mvs-live). В установленной
+# системе действуют обычные настройки Debian: там нет ни zram-спешки,
+# ни ограничений демонстрационного образа.
+
+set -u
+
+[ -e /etc/mvs-live ] || exit 0
+
+# zram — это swap в сжатой оперативной памяти. Для него нужен высокий
+# swappiness: ядро должно охотно отдавать холодные страницы в zram,
+# а не ждать, пока память закончится совсем. page-cluster=0 — читать
+# по одной странице: для zram это быстрее, чем упреждающее чтение.
+sysctl -q -w vm.swappiness=100 2>/dev/null || true
+sysctl -q -w vm.page-cluster=0 2>/dev/null || true
+sysctl -q -w vm.watermark_boost_factor=0 2>/dev/null || true
+sysctl -q -w vm.watermark_scale_factor=125 2>/dev/null || true
+
+# Аппаратный watchdog в виртуальной машине не нужен: он только
+# будит процессор и замедляет программную эмуляцию.
+sysctl -q -w kernel.nmi_watchdog=0 2>/dev/null || true
+
+exit 0

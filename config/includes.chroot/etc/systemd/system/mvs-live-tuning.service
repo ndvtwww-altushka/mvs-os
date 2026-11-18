@@ -1,0 +1,14 @@
+[Unit]
+Description=MVS OS — настройка Live-системы под отзывчивость
+Documentation=file:/usr/local/sbin/mvs-live-tuning
+ConditionPathExists=/etc/mvs-live
+After=zramswap.service
+Wants=zramswap.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/mvs-live-tuning
+
+[Install]
+WantedBy=multi-user.target

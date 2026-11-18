@@ -8,7 +8,7 @@ Wants=lightdm.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/mvs-boot-check
-TimeoutStartSec=200
+TimeoutStartSec=300
 
 [Install]
 WantedBy=graphical.target

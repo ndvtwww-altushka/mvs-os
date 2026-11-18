@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       tag:
-        description: "Тег релиза, например v1.5"
+        description: "Тег релиза, например v1.6"
         required: true
         type: string
       codename:

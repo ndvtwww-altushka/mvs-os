@@ -29,7 +29,7 @@ def _identity(path, fallback):
         return fallback
 
 
-VERSION = _identity("/etc/mvs-version", "1.5")
+VERSION = _identity("/etc/mvs-version", "1.6")
 CODENAME = _identity("/etc/mvs-codename", "Aurora Nova")
 
 CONFIG_DIR = os.path.expanduser("~/.config/mvs")

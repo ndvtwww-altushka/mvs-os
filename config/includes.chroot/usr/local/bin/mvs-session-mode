@@ -68,16 +68,31 @@ set_bool() {
     fi
 }
 
+set_int() {
+    channel=$1
+    prop=$2
+    value=$3
+    if xfconf-query -c "$channel" -p "$prop" >/dev/null 2>&1; then
+        xfconf-query -c "$channel" -p "$prop" -s "$value" >/dev/null 2>&1 || true
+    else
+        xfconf-query -c "$channel" -p "$prop" -n -t int -s "$value" >/dev/null 2>&1 || true
+    fi
+}
+
 if [ "$MODE" = lite ]; then
     # Программный рендеринг: убираем всё, что заставляет перерисовывать
     # экран лишний раз.
     set_bool xfwm4 /general/use_compositing false
     set_bool xsettings /Gtk/EnableAnimations false
     set_bool xsettings /Gtk/EnableEventSounds false
+    # В виртуальном экране нет субпиксельной сетки: RGB-сглаживание
+    # даёт цветные каймы и мыло. Оттенки серого выглядят чище.
+    set_int xsettings /Xft/RGBA 0
     say "лёгкий режим включён"
 else
     set_bool xfwm4 /general/use_compositing true
     set_bool xsettings /Gtk/EnableAnimations true
+    set_int xsettings /Xft/RGBA 1
     say "полный режим включён"
 fi
 

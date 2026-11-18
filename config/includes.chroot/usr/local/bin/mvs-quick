@@ -1,3 +1,4 @@
 #!/bin/sh
-# MVS OS — приложение MVS quick.
-exec python3 /usr/lib/mvs/apps/mvs_quick.py "$@"
+# MVS OS — приложение MVS.
+# Ошибки не исчезают молча: mvs-app покажет их и запишет в журнал.
+exec /usr/local/bin/mvs-app "Быстрые действия" mvs_quick.py "$@"

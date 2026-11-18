@@ -44,6 +44,19 @@ sh make-vm.sh --live --fullscreen
 именно в этом случае нижняя часть панели уезжала за край. Отключить
 автоматику можно через `MVS_AUTO_FULLSCREEN=0`.
 
+## Что ускорено в 1.6
+
+В Live-сеансе не запускаются фоновые службы, которые не нужны для
+демонстрации: таймеры `apt-daily`, `unattended-upgrades`, `fwupd`,
+`man-db`, `e2scrub`, ожидание сети `NetworkManager-wait-online`,
+Bluetooth и Avahi. Условие привязано к маркеру `/etc/mvs-live`,
+поэтому в установленной системе они работают как обычно.
+
+zram увеличен до 50% RAM, `vm.swappiness=100` и `vm.page-cluster=0`:
+холодные страницы уходят в сжатый swap, а не ждут, пока память
+закончится. Firefox запускается с программным WebRender, без WebGL
+и аппаратного видео — в QEMU без KVM это самый тяжёлый компонент.
+
 ## Лёгкий режим без аппаратного ускорения
 
 Внутри работают те же настройки, что и на железе, но при старте сеанса
@@ -92,7 +105,7 @@ QEMU, команда `quit` — аварийный выход, `Ctrl+Alt+1` — 
 
 Скрипт сам ищет ISO рядом с собой, в текущей папке и в `~/Downloads`.
 Сначала берётся образ ровно той версии, что указана в `VERSION`
-(сейчас 1.5), а если его нет — самый новый из найденных: старые ISO
+(сейчас 1.6), а если его нет — самый новый из найденных: старые ISO
 рядом не должны запускаться по ошибке. Если QEMU нет:
 
 ```sh
@@ -191,7 +204,7 @@ qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 4 \
   -device qemu-xhci -device usb-tablet -vga virtio \
   -drive file=mvs.qcow2,if=none,id=mvsdisk,cache=writeback \
   -device virtio-blk-pci,drive=mvsdisk,iothread=mvsio \
-  -cdrom MVS-OS-1.5-amd64.iso -boot d
+  -cdrom MVS-OS-1.6-amd64.iso -boot d
 ```
 
 После установки — без `-cdrom` и с `-boot c`.
@@ -216,7 +229,7 @@ VLC, терминал, файлы, apt, обновления, сеть чере�
 
 ```sh
 qemu-system-x86_64 -enable-kvm -m 4096 -smp 4 \
-  -cdrom MVS-OS-1.5-amd64.iso -boot d \
+  -cdrom MVS-OS-1.6-amd64.iso -boot d \
   -drive file=/dev/sdb,format=raw,if=virtio
 ```
 

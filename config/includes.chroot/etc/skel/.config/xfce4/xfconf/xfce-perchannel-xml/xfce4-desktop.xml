@@ -12,7 +12,7 @@
   </property>
   <property name="desktop-icons" type="empty">
     <property name="style" type="int" value="1"/>
-    <property name="icon-size" type="double" value="40"/>
+    <property name="icon-size" type="double" value="44"/>
     <property name="file-icons" type="empty">
       <property name="show-filesystem" type="bool" value="false"/>
       <property name="show-home" type="bool" value="true"/>

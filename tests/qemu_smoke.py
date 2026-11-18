@@ -22,12 +22,12 @@
     Это требует ручной проверки на железе или полноценного autopilot.
 
 Запуск:
-    python3 tests/qemu_smoke.py MVS-OS-1.5-amd64.iso
-    python3 tests/qemu_smoke.py --uefi MVS-OS-1.5-amd64.iso
-    python3 tests/qemu_smoke.py --secure-boot MVS-OS-1.5-amd64.iso
+    python3 tests/qemu_smoke.py MVS-OS-1.6-amd64.iso
+    python3 tests/qemu_smoke.py --uefi MVS-OS-1.6-amd64.iso
+    python3 tests/qemu_smoke.py --secure-boot MVS-OS-1.6-amd64.iso
 
 Переменные:
-    MVS_QEMU_BOOT   секунд на загрузку (по умолчанию 180)
+    MVS_QEMU_BOOT   секунд на загрузку (по умолчанию 300)
     MVS_OVMF        путь к OVMF_CODE или объединённому OVMF.fd
     MVS_OVMF_VARS   путь к OVMF_VARS (если не угадывается рядом)
     MVS_OVMF_SECBOOT       OVMF_CODE с поддержкой Secure Boot
@@ -41,7 +41,7 @@ import subprocess
 import sys
 import time
 
-BOOT_SECONDS = int(os.environ.get("MVS_QEMU_BOOT", "180"))
+BOOT_SECONDS = int(os.environ.get("MVS_QEMU_BOOT", "300"))
 
 OVMF_PAIRS = [
     ("/usr/share/OVMF/OVMF_CODE_4M.fd", "/usr/share/OVMF/OVMF_VARS_4M.fd"),

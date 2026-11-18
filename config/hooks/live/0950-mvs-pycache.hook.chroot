@@ -1,0 +1,28 @@
+#!/bin/sh
+# MVS OS — завершающая подготовка образа.
+#
+# Хук идёт после чистки (0900): кэш байт-кода Python должен остаться
+# в образе, иначе каждый запуск приложения тратит время на компиляцию.
+# На программной эмуляции QEMU это заметно.
+set -e
+
+echo "▸ MVS OS: кэш приложений"
+
+# Синтаксис проверяется здесь же: битый файл должен ломать сборку,
+# а не приложение у человека.
+python3 -m compileall -q -f /usr/lib/mvs >/dev/null
+
+# Кэш иконок и база ярлыков: меню открывается быстрее и без пустых
+# значков. Ошибки не критичны.
+for theme in /usr/share/icons/MVS /usr/share/icons/hicolor /usr/share/icons/Adwaita; do
+    [ -d "$theme" ] || continue
+    gtk-update-icon-cache -f -q -t "$theme" >/dev/null 2>&1 || true
+done
+update-desktop-database -q /usr/share/applications >/dev/null 2>&1 || true
+
+# Права: репозиторий может лежать на FAT/exFAT, где исполняемые биты
+# не хранятся. Без этого ярлык «есть», а приложение не запускается.
+find /usr/local/bin /usr/local/sbin -type f -exec chmod 755 {} +
+find /etc/skel/Desktop -maxdepth 1 -name '*.desktop' -exec chmod 755 {} +
+
+echo "▸ MVS OS: кэш приложений готов"

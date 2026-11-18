@@ -1,3 +1,4 @@
 #!/bin/sh
-# MVS OS — приложение MVS about.
-exec python3 /usr/lib/mvs/apps/mvs_about.py "$@"
+# MVS OS — приложение MVS.
+# Ошибки не исчезают молча: mvs-app покажет их и запишет в журнал.
+exec /usr/local/bin/mvs-app "О системе" mvs_about.py "$@"

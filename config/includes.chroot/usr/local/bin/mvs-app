@@ -1,0 +1,50 @@
+#!/bin/sh
+# MVS OS — запуск приложения с понятной реакцией на нажатие.
+#
+# Раньше ярлык запускал python3 напрямую: если приложению не хватало
+# библиотеки или оно падало при старте, пользователь видел только
+# «ничего не произошло». Теперь при запуске появляется короткое
+# уведомление, а ошибка показывается целиком и пишется в журнал.
+#
+# Использование: mvs-app "Имя" файл.py [аргументы...]
+
+set -u
+
+NAME=${1:-Приложение}
+APP=${2:-}
+shift 2 2>/dev/null || shift $#
+[ -n "$APP" ] || exit 2
+
+LOG="${XDG_CACHE_HOME:-$HOME/.cache}/mvs-apps.log"
+DIR=${LOG%/*}
+mkdir -p "$DIR" 2>/dev/null || true
+
+printf '\n[%s] %s (%s)\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$NAME" "$APP" \
+    >>"$LOG" 2>/dev/null || true
+
+# Иконка приложения из файла mvs_about.py → mvs-about.
+ICON=mvs-os
+case "$APP" in
+    mvs_*.py) ICON=$(printf '%s' "${APP%.py}" | tr '_' '-') ;;
+esac
+
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send -a "MVS OS" -i "$ICON" -t 1200 \
+        "MVS OS" "Запускаю: $NAME" >/dev/null 2>&1 &
+fi
+
+python3 "/usr/lib/mvs/apps/$APP" "$@" 2>>"$LOG"
+rc=$?
+
+if [ "$rc" -ne 0 ]; then
+    printf '[%s] %s завершилось с кодом %s\n' \
+        "$(date '+%H:%M:%S')" "$NAME" "$rc" >>"$LOG" 2>/dev/null || true
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u critical -a "MVS OS" -i dialog-error \
+            "MVS OS · $NAME" \
+            "Не запустилось (код $rc). Подробности: ~/.cache/mvs-apps.log" \
+            >/dev/null 2>&1 || true
+    fi
+fi
+
+exit "$rc"

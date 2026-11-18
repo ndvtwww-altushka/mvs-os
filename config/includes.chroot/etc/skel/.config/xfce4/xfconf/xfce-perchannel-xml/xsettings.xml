@@ -10,7 +10,7 @@
     <property name="DPI" type="int" value="-1"/>
     <property name="Antialias" type="int" value="1"/>
     <property name="HintStyle" type="string" value="hintslight"/>
-    <property name="RGBA" type="int" value="1"/>
+    <property name="RGBA" type="int" value="0"/>
   </property>
   <property name="Gtk" type="empty">
     <property name="EnableAnimations" type="bool" value="false"/>
