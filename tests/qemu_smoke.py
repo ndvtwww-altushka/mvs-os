@@ -2,10 +2,13 @@
 """MVS OS — дымовой тест загрузки ISO в QEMU.
 
 Что проверяется:
-    1. ISO вообще стартует в виртуальной машине (нет паники ядра, нет
-       мгновенного выхода QEMU).
-    2. К моменту снимка экрана framebuffer не пустой: значит, ядро
-       инициализировало графику и что-то нарисовало (GRUB или система).
+    1. ISO не просто показывает меню GRUB: тест нажимает Enter и ждёт,
+       пока ядро начнёт загрузку.
+    2. Система дошла до настоящего Live-сеанса: служба mvs-boot-check
+       пишет в последовательный порт MVS_BOOT_OK только когда пользователь
+       mvs создан и у него работает XFCE. Меню GRUB или экран входа
+       с несуществующим пользователем этот маркер не дают.
+    3. Снимок экрана не пустой и похож на рабочий стол.
 
 Режимы:
     BIOS (по умолчанию) — обычная загрузка, как на старом ПК.
@@ -190,6 +193,56 @@ def screen_state(path):
     return share >= 0.04 and len(colors) >= 24, detail
 
 
+def read_text(path):
+    """Содержимое файла или пустая строка, если его ещё нет."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+            return handle.read()
+    except OSError:
+        return ""
+
+
+def wait_for_boot(sock, serial_path, timeout, process):
+    """Нажимает Enter в меню и ждёт маркер реального сеанса.
+
+    Возвращает (успех, пояснение, текст serial). Маркер MVS_BOOT_OK
+    пишет служба mvs-boot-check после того, как live-config создал
+    пользователя mvs и LightDM поднял его сеанс XFCE.
+    """
+    started = time.time()
+    presses = 0
+
+    # Пока ядро не начало вывод, считаем, что мы в меню загрузчика.
+    # Enter выбирает «Live system (amd64)»; в BIOS это ISOLINUX,
+    # в UEFI — GRUB. Лишние нажатия после старта ядра безвредны.
+    while time.time() - started < min(90, timeout):
+        if process.poll() is not None:
+            return False, "QEMU завершился с кодом %s" % process.returncode, read_text(serial_path)
+        text = read_text(serial_path)
+        if "Linux version" in text or "MVS_BOOT_" in text or "Kernel panic" in text:
+            break
+        if presses < 40:
+            monitor_command(sock, "sendkey ret")
+            presses += 1
+        time.sleep(2)
+
+    deadline = started + timeout
+    while time.time() < deadline:
+        if process.poll() is not None:
+            return False, "QEMU завершился с кодом %s" % process.returncode, read_text(serial_path)
+        text = read_text(serial_path)
+        if "MVS_BOOT_OK" in text:
+            return True, "маркер сеанса mvs найден", text
+        if "MVS_BOOT_FAIL" in text:
+            line = [l for l in text.splitlines() if "MVS_BOOT_FAIL" in l]
+            return False, (line[-1] if line else "маркер MVS_BOOT_FAIL"), text
+        if "Kernel panic" in text:
+            return False, "паника ядра", text
+        time.sleep(2)
+
+    return False, "маркер MVS_BOOT_OK не появился за %d с" % timeout, read_text(serial_path)
+
+
 def main(argv):
     uefi = False
     secure_boot = False
@@ -230,7 +283,9 @@ def main(argv):
     log = "qemu%s.log" % suffix
     vars_copy = "ovmf-vars%s.fd" % suffix
 
-    for path in (monitor, screenshot):
+    # Старый serial.log с маркером прошлого запуска не должен
+    # засчитать эту загрузку: чистим все файлы теста.
+    for path in (monitor, screenshot, serial, log, vars_copy):
         if os.path.exists(path):
             os.unlink(path)
 
@@ -275,20 +330,26 @@ def main(argv):
             print("FAIL: монитор QEMU не поднялся")
             return 1
 
-        print("Ждём %d секунд загрузки…" % BOOT_SECONDS)
-        time.sleep(BOOT_SECONDS)
-
-        if process.poll() is not None:
-            print("FAIL: QEMU завершился с кодом %s" % process.returncode)
-            return 1
-
+        ok = False
+        detail = "тест не дошел до проверки"
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
             sock.settimeout(10)
             sock.connect(monitor)
-            monitor_command(sock, "screendump %s" % screenshot)
-            time.sleep(2)
-            monitor_command(sock, "quit")
-            time.sleep(1)
+
+            print("Загружаем ISO: Enter в меню, ждём MVS_BOOT_OK (до %d с)…" % BOOT_SECONDS)
+            ok, detail, serial_text = wait_for_boot(sock, serial, BOOT_SECONDS, process)
+            print("%s: %s" % ("OK" if ok else "FAIL", detail))
+
+            # Снимок делаем в любом случае: при падении он нужен для разбора.
+            try:
+                monitor_command(sock, "screendump %s" % screenshot)
+                time.sleep(2)
+            finally:
+                try:
+                    monitor_command(sock, "quit")
+                except OSError:
+                    pass
+                time.sleep(1)
     finally:
         if process.poll() is None:
             process.terminate()
@@ -301,18 +362,21 @@ def main(argv):
         print("FAIL: снимок экрана не создан")
         return 1
 
-    ok, detail = screen_state(screenshot)
-    print("%s: %s" % ("OK" if ok else "FAIL", detail))
+    screen_ok, screen_detail = screen_state(screenshot)
+    print("%s: %s" % ("OK" if screen_ok else "FAIL", screen_detail))
 
-    serial_text = ""
-    if os.path.isfile(serial):
-        with open(serial, "r", encoding="utf-8", errors="replace") as handle:
-            serial_text = handle.read()
     if "Kernel panic" in serial_text:
         print("FAIL: в последовательном порту паника ядра")
         return 1
+    if not ok:
+        print("FAIL: система не подтвердила вход в сеанс mvs")
+        print("      смотрите %s и %s" % (serial, screenshot))
+        return 1
+    if not screen_ok:
+        print("FAIL: сеанс есть, но экран не похож на рабочий стол")
+        return 1
 
-    return 0 if ok else 1
+    return 0
 
 
 if __name__ == "__main__":

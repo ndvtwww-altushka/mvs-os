@@ -1,0 +1,14 @@
+[Unit]
+Description=MVS OS — подтверждение входа в Live-сеанс
+Documentation=file:/usr/local/sbin/mvs-boot-check
+ConditionPathExists=/etc/mvs-live
+After=lightdm.service
+Wants=lightdm.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mvs-boot-check
+TimeoutStartSec=200
+
+[Install]
+WantedBy=graphical.target

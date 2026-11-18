@@ -122,6 +122,14 @@ jobs:
           sys.exit(1 if bad else 0)
           PY
 
+      - name: Подтверждение входа в Live
+        run: |
+          test -f config/includes.chroot/usr/local/sbin/mvs-boot-check
+          test -s config/includes.chroot/etc/systemd/system/mvs-boot-check.service
+          grep -q 'MVS_BOOT_OK' config/includes.chroot/usr/local/sbin/mvs-boot-check
+          grep -q 'mvs-boot-check.service' config/hooks/live/0300-mvs-identity.hook.chroot
+          echo "маркер входа: конфигурация на месте"
+
       - name: Снимки btrfs — инструменты на месте и исполняемые
         run: |
           for f in config/includes.chroot/usr/local/sbin/mvs-snapshot \
@@ -347,7 +355,10 @@ jobs:
 
             Образ собран из этого коммита и **проверен загрузкой в QEMU
             в трёх режимах**: BIOS, UEFI и UEFI с включённым Secure Boot
-            (shim → подписанный GRUB). Релиз создан только после того,
+            (shim → подписанный GRUB). Тест не считает меню GRUB успехом:
+            он нажимает Enter и ждёт маркер `MVS_BOOT_OK`, который служба
+            `mvs-boot-check` пишет только после создания пользователя `mvs`
+            и запуска его сеанса XFCE. Релиз создан только после того,
             как все три проверки прошли.
 
             ## Главное в 1.4

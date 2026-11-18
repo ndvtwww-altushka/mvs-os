@@ -1,0 +1,35 @@
+#!/bin/sh
+# MVS OS — подтверждение, что Live-сеанс действительно поднялся.
+#
+# QEMU-тест не должен принимать меню GRUB за загруженную систему.
+# Поэтому после старта графики этот скрипт проверяет две вещи:
+#   1. пользователь mvs существует (его создаёт live-config + user-setup);
+#   2. у mvs есть процесс сеанса XFCE (автовход сработал).
+# Результат пишется в последовательный порт: MVS_BOOT_OK или MVS_BOOT_FAIL.
+# В установленной системе служба не запускается: нет /etc/mvs-live.
+
+set -u
+
+SERIAL=/dev/ttyS0
+say() { printf '%s\n' "$*" > "$SERIAL" 2>/dev/null || true; }
+
+user_ok=0
+i=0
+while [ "$i" -lt 150 ]; do
+    if getent passwd mvs >/dev/null 2>&1; then
+        user_ok=1
+        if ps -u mvs -o comm= 2>/dev/null | grep -qE 'xfce4-session|xfwm4'; then
+            say "MVS_BOOT_OK user=mvs session=xfce"
+            exit 0
+        fi
+    fi
+    i=$((i + 1))
+    sleep 1
+done
+
+if [ "$user_ok" -eq 1 ]; then
+    say "MVS_BOOT_FAIL: пользователь mvs есть, сеанс XFCE не поднялся"
+else
+    say "MVS_BOOT_FAIL: пользователь mvs не создан (user-setup/live-config)"
+fi
+exit 1

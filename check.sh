@@ -224,6 +224,18 @@ if grep -q '^XKBLAYOUT="us,ru"' config/includes.chroot/etc/default/keyboard 2>/d
 else
     warn "XKBLAYOUT не us,ru: на экране входа можно случайно набрать пароль по-русски"
 fi
+if [ -f config/includes.chroot/usr/local/sbin/mvs-boot-check ] \
+        && grep -q 'MVS_BOOT_OK' config/includes.chroot/usr/local/sbin/mvs-boot-check; then
+    ok "подтверждение входа: mvs-boot-check на месте"
+else
+    bad "нет mvs-boot-check: QEMU-тест не отличит GRUB от загруженной системы"
+fi
+if grep -q 'mvs-boot-check.service' config/hooks/live/0300-mvs-identity.hook.chroot \
+        && [ -f config/includes.chroot/etc/systemd/system/mvs-boot-check.service ]; then
+    ok "служба подтверждения входа включается при сборке"
+else
+    bad "mvs-boot-check.service не включается в образ"
+fi
 
 printf '\n▸ MVS Store\n'
 presets=config/includes.chroot/usr/share/mvs/store/presets.json
