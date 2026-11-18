@@ -236,6 +236,19 @@ if grep -q 'mvs-boot-check.service' config/hooks/live/0300-mvs-identity.hook.chr
 else
     bad "mvs-boot-check.service не включается в образ"
 fi
+if [ -f config/includes.chroot/usr/local/sbin/mvs-live-user ] \
+        && grep -q 'MVS_LIVE_USER_OK' config/includes.chroot/usr/local/sbin/mvs-live-user; then
+    ok "пользователь Live создаётся службой mvs-live-user"
+else
+    bad "нет mvs-live-user: вход зависит от live-config, который уже подводил"
+fi
+if [ -f config/includes.chroot/etc/systemd/system/mvs-live-user.service ] \
+        && grep -q 'Before=lightdm.service' config/includes.chroot/etc/systemd/system/mvs-live-user.service \
+        && grep -q 'mvs-live-user.service' config/hooks/live/0300-mvs-identity.hook.chroot; then
+    ok "mvs-live-user запускается до LightDM"
+else
+    bad "mvs-live-user.service не упорядочена с LightDM"
+fi
 
 printf '\n▸ MVS Store\n'
 presets=config/includes.chroot/usr/share/mvs/store/presets.json

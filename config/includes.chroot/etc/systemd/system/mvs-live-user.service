@@ -1,0 +1,16 @@
+[Unit]
+Description=MVS OS — пользователь Live-сеанса (mvs)
+Documentation=file:/usr/local/sbin/mvs-live-user
+ConditionPathExists=/etc/mvs-live
+After=live-config.service local-fs.target
+Wants=live-config.service
+Before=lightdm.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mvs-live-user
+RemainAfterExit=yes
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target

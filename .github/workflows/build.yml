@@ -128,7 +128,11 @@ jobs:
           test -s config/includes.chroot/etc/systemd/system/mvs-boot-check.service
           grep -q 'MVS_BOOT_OK' config/includes.chroot/usr/local/sbin/mvs-boot-check
           grep -q 'mvs-boot-check.service' config/hooks/live/0300-mvs-identity.hook.chroot
-          echo "маркер входа: конфигурация на месте"
+          test -f config/includes.chroot/usr/local/sbin/mvs-live-user
+          test -s config/includes.chroot/etc/systemd/system/mvs-live-user.service
+          grep -q 'Before=lightdm.service' config/includes.chroot/etc/systemd/system/mvs-live-user.service
+          grep -q 'mvs-live-user.service' config/hooks/live/0300-mvs-identity.hook.chroot
+          echo "вход в Live: служба пользователя и маркер на месте"
 
       - name: Снимки btrfs — инструменты на месте и исполняемые
         run: |
@@ -363,10 +367,12 @@ jobs:
 
             ## Главное в 1.4
 
-            - **Вход в Live работает.** В образ добавлен `user-setup`, без
-              которого `live-config` не создаёт пользователя `mvs` и любой
-              пароль на экране входа считается неверным. Раскладка
-              по умолчанию — английская, русская по Alt+Shift.
+            - **Вход в Live работает.** В образ добавлен `user-setup`, а
+              пользователя `mvs` дополнительно гарантирует служба
+              `mvs-live-user`: она запускается после `live-config` и до
+              LightDM и создаёт учётную запись, если та не появилась.
+              Пароль — `live`, раскладка по умолчанию английская,
+              русская по Alt+Shift.
             - **Откат снимками btrfs.** Установка по умолчанию — btrfs
               с субтомами `@`, `@home`, `@snapshots`. Перед каждым
               обновлением создаётся снимок, а в меню GRUB появляется

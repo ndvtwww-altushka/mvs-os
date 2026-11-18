@@ -18,7 +18,7 @@ say() { printf '%s\n' "$*"; }
 die() { printf 'Ошибка: %s\n' "$*" >&2; exit 1; }
 
 VERSION=$(tr -d ' \n' < "$ROOT/VERSION" 2>/dev/null || true)
-CODENAME=$(tr -d ' \n' < "$ROOT/CODENAME" 2>/dev/null || true)
+CODENAME=$(tr -d '\r\n' < "$ROOT/CODENAME" 2>/dev/null || true)
 [ -n "$VERSION" ] || die "пустой или отсутствует файл VERSION"
 [ -n "$CODENAME" ] || CODENAME="Aurora Nova"
 NAME="MVS-OS-${VERSION}-amd64"

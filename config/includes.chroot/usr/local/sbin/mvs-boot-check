@@ -3,15 +3,36 @@
 #
 # QEMU-тест не должен принимать меню GRUB за загруженную систему.
 # Поэтому после старта графики этот скрипт проверяет две вещи:
-#   1. пользователь mvs существует (его создаёт live-config + user-setup);
+#   1. пользователь mvs существует (его создаёт mvs-live-user,
+#      а при штатной работе — ещё и live-config + user-setup);
 #   2. у mvs есть процесс сеанса XFCE (автовход сработал).
 # Результат пишется в последовательный порт: MVS_BOOT_OK или MVS_BOOT_FAIL.
+# При ошибке туда же выводится диагностика: без неё причина видна только
+# на экране виртуальной машины, а в CI остаётся пустой serial.log.
 # В установленной системе служба не запускается: нет /etc/mvs-live.
 
 set -u
 
 SERIAL=/dev/ttyS0
 say() { printf '%s\n' "$*" > "$SERIAL" 2>/dev/null || true; }
+
+dump_diagnostics() {
+    say "MVS_BOOT_DIAG: cmdline=$(cat /proc/cmdline 2>/dev/null)"
+    say "MVS_BOOT_DIAG: mvs=$(getent passwd mvs 2>/dev/null || echo 'нет в /etc/passwd')"
+    say "MVS_BOOT_DIAG: user-setup=$(dpkg-query -W -f='${db:Status-Status} ${Version}' user-setup 2>&1)"
+    say "MVS_BOOT_DIAG: live-state=$(ls /var/lib/live/config 2>&1 | tr '\n' ' ')"
+    say "MVS_BOOT_DIAG: lightdm=$(systemctl is-active lightdm.service 2>&1)"
+    say "MVS_BOOT_DIAG: сеансы mvs: $(ps -u mvs -o pid=,comm= 2>&1 | tr '\n' ';')"
+
+    # Компоненты live-config пишут только в этот файл, а не в serial.
+    if [ -r /var/log/live/config.log ]; then
+        tail -n 30 /var/log/live/config.log 2>/dev/null | while IFS= read -r line; do
+            say "MVS_BOOT_DIAG: live-log: $line"
+        done
+    else
+        say "MVS_BOOT_DIAG: /var/log/live/config.log недоступен"
+    fi
+}
 
 user_ok=0
 i=0
@@ -30,6 +51,7 @@ done
 if [ "$user_ok" -eq 1 ]; then
     say "MVS_BOOT_FAIL: пользователь mvs есть, сеанс XFCE не поднялся"
 else
-    say "MVS_BOOT_FAIL: пользователь mvs не создан (user-setup/live-config)"
+    say "MVS_BOOT_FAIL: пользователь mvs не создан (mvs-live-user/user-setup)"
 fi
+dump_diagnostics
 exit 1

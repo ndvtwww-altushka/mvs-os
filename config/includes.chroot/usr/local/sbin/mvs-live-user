@@ -1,0 +1,65 @@
+#!/bin/sh
+# MVS OS — пользователь Live-сеанса.
+#
+# Пользователя mvs должен создавать live-config через компонент
+# 0030-user-setup. На практике компонент может молча ничего не сделать
+# (ошибка user-setup-apply, нестандартный образ, будущее изменение
+# live-config), и тогда экран входа отвергает любой пароль.
+#
+# Поэтому MVS OS не полагается на чужой компонент: эта служба запускается
+# после live-config, но до LightDM, и гарантирует, что пользователь mvs
+# существует, у него есть домашняя папка, группы и пароль live.
+# Скрипт идемпотентен: если live-config уже всё создал, он только
+# доводит настройки до нужного состояния.
+#
+# В установленной системе служба не запускается: нет /etc/mvs-live.
+
+set -u
+
+[ -e /etc/mvs-live ] || exit 0
+
+SERIAL=/dev/ttyS0
+say() { printf '%s\n' "$*" > "$SERIAL" 2>/dev/null || true; }
+
+if ! id mvs >/dev/null 2>&1; then
+    say "MVS_LIVE_USER: создаю пользователя mvs"
+
+    if command -v adduser >/dev/null 2>&1; then
+        adduser --disabled-password --gecos "MVS OS Live" \
+            --home /home/mvs --shell /bin/bash mvs >/dev/null 2>&1 \
+            || useradd -m -s /bin/bash -c "MVS OS Live" mvs || true
+    else
+        useradd -m -s /bin/bash -c "MVS OS Live" mvs || true
+    fi
+fi
+
+# Группы, которые реально есть в образе. Отсутствующая группа не должна
+# срывать создание учётной записи.
+for group in audio cdrom dip video plugdev netdev powerdev scanner \
+             bluetooth sudo users; do
+    if getent group "$group" >/dev/null 2>&1; then
+        adduser mvs "$group" >/dev/null 2>&1 || true
+    fi
+done
+
+# Домашняя папка с ярлыками из /etc/skel. adduser обычно уже сделал её,
+# но после неудачного user-setup-apply она могла остаться пустой.
+if [ ! -d /home/mvs ]; then
+    mkdir -p /home/mvs
+    cp -a /etc/skel/. /home/mvs/ 2>/dev/null || true
+fi
+chown -R mvs:mvs /home/mvs 2>/dev/null || true
+
+# Пароль по умолчанию — live, как в Debian Live. Он нужен и для входа
+# в консоли, если графический сеанс когда-нибудь не поднимется.
+printf 'mvs:live\n' | chpasswd >/dev/null 2>&1 || true
+usermod -U mvs >/dev/null 2>&1 || true
+chage -E -1 mvs >/dev/null 2>&1 || true
+
+if id mvs >/dev/null 2>&1; then
+    say "MVS_LIVE_USER_OK $(getent passwd mvs 2>/dev/null)"
+    exit 0
+fi
+
+say "MVS_LIVE_USER_FAIL: пользователя mvs создать не удалось"
+exit 1
