@@ -222,6 +222,14 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Live-вход — user-setup в собранном ISO
+        run: |
+          grep -qE '^user-setup[[:space:]]' PACKAGES-*.txt || {
+            echo "::error::в ISO нет user-setup — Live-вход не работает"
+            exit 1
+          }
+          echo "user-setup в ISO: $(grep -E '^user-setup[[:space:]]' PACKAGES-*.txt)"
+
       - name: Сохранить журнал сборки при ошибке
         if: failure()
         uses: actions/upload-artifact@v4
@@ -331,6 +339,7 @@ jobs:
           tag_name: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || format('v{0}', needs.build.outputs.version) }}
           name: MVS OS ${{ needs.build.outputs.version }} «${{ needs.build.outputs.codename }}»
           draft: false
+          overwrite_files: true
           body: |
             MVS OS ${{ needs.build.outputs.version }} «${{ needs.build.outputs.codename }}» —
             live-образ на базе Debian 12 (bookworm) с XFCE, приложениями MVS
@@ -343,6 +352,10 @@ jobs:
 
             ## Главное в 1.4
 
+            - **Вход в Live работает.** В образ добавлен `user-setup`, без
+              которого `live-config` не создаёт пользователя `mvs` и любой
+              пароль на экране входа считается неверным. Раскладка
+              по умолчанию — английская, русская по Alt+Shift.
             - **Откат снимками btrfs.** Установка по умолчанию — btrfs
               с субтомами `@`, `@home`, `@snapshots`. Перед каждым
               обновлением создаётся снимок, а в меню GRUB появляется

@@ -77,7 +77,7 @@ lb config \
     --archive-areas "main contrib non-free non-free-firmware" \
     --binary-images iso-hybrid \
     --bootloaders "syslinux,grub-efi" \
-    --bootappend-live "boot=live components quiet splash loglevel=3 locales=ru_RU.UTF-8 keyboard-layouts=ru,us keyboard-variants=,winkeys timezone=Europe/Moscow username=mvs hostname=mvs-os security=apparmor apparmor=1 console=ttyS0,115200n8 console=tty0" \
+    --bootappend-live "boot=live components quiet splash loglevel=3 locales=ru_RU.UTF-8 keyboard-layouts=us,ru keyboard-variants=,winkeys timezone=Europe/Moscow username=mvs hostname=mvs-os security=apparmor apparmor=1 console=ttyS0,115200n8 console=tty0" \
     --debian-installer false \
     --iso-application "MVS OS" \
     --iso-preparer "MVS OS" \
@@ -153,6 +153,17 @@ lb build
 
 ISO=$(find "$BUILD" -maxdepth 1 -name '*.iso' -type f | head -n 1)
 [ -n "$ISO" ] || die "ISO не найден после сборки"
+
+# Live-вход держится на одном пакете: live-config/0030-user-setup молча
+# выходит, если user-setup не установлен, и пользователь mvs не создаётся.
+# Проверяем это до упаковки, а не после публикации.
+if ! chroot "$BUILD/chroot" dpkg-query -W user-setup >/dev/null 2>&1; then
+    die "в образе нет user-setup: Live-вход не будет работать"
+fi
+if [ ! -x "$BUILD/chroot/usr/lib/user-setup/user-setup-apply" ]; then
+    die "в образе нет /usr/lib/user-setup/user-setup-apply: Live-вход не будет работать"
+fi
+say "  Live-вход: user-setup на месте"
 
 cp -f "$ISO" "$ROOT/${NAME}.iso"
 cd "$ROOT"

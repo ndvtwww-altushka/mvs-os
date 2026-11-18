@@ -202,6 +202,29 @@ else
     ok "дубликатов пакетов нет"
 fi
 
+printf '\n▸ Вход в Live\n'
+if grep -qx 'user-setup' config/package-lists/01-live.list.chroot; then
+    ok "user-setup в списке Live (live-config создаст пользователя mvs)"
+else
+    bad "в 01-live.list.chroot нет user-setup: live-config не создаст mvs, вход невозможен"
+fi
+if grep -q '^autologin-user=mvs$' \
+        config/includes.chroot/etc/lightdm/lightdm.conf.d/50-mvs-autologin.conf 2>/dev/null; then
+    ok "автовход Live настроен на mvs"
+else
+    bad "нет автовхода mvs в lightdm.conf.d/50-mvs-autologin.conf"
+fi
+if grep -q 'keyboard-layouts=us,ru' build.sh; then
+    ok "раскладка Live: английская первой"
+else
+    warn "в build.sh раскладка не us,ru: пароль live на экране входа может не набраться"
+fi
+if grep -q '^XKBLAYOUT="us,ru"' config/includes.chroot/etc/default/keyboard 2>/dev/null; then
+    ok "раскладка установленной системы: английская первой"
+else
+    warn "XKBLAYOUT не us,ru: на экране входа можно случайно набрать пароль по-русски"
+fi
+
 printf '\n▸ MVS Store\n'
 presets=config/includes.chroot/usr/share/mvs/store/presets.json
 if [ -f "$presets" ]; then

@@ -55,6 +55,7 @@ jobs:
           tag_name: ${{ inputs.tag }}
           name: MVS OS ${{ steps.v.outputs.version }} «${{ inputs.codename }}»
           draft: false
+          overwrite_files: true
           body: |
             MVS OS ${{ steps.v.outputs.version }} «${{ inputs.codename }}».
 
