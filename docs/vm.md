@@ -30,6 +30,16 @@ sh tools/make-vm.sh --live
 Откроется окно MVS OS. Крестик закрывает VM и возвращает в Linux —
 хост не перезагружался, изменения в Live-режиме не сохраняются.
 
+Если окно не влезает в экран (гость просит 1280×800, а монитор меньше):
+
+```sh
+sh make-vm.sh --live --fullscreen
+```
+
+Или прямо в окне VM нажмите `Ctrl+Alt+F` — полный экран и обратно.
+Окно можно и просто перетащить за заголовок: картинка внутри
+масштабируется под размер окна.
+
 ## Alt+Tab между MVS OS и Linux
 
 Окно QEMU — обычное окно рабочего стола, и по умолчанию оно **не
@@ -55,8 +65,10 @@ MVS_GRAB=1 sh make-vm.sh --live
 `Ctrl+Alt+F` — полный экран и обратно. `Ctrl+Alt+2` открывает монитор
 QEMU, команда `quit` — аварийный выход, `Ctrl+Alt+1` — назад в систему.
 
-Скрипт сам ищет ISO рядом с собой, в текущей папке и в `~/Downloads`,
-проверяет QEMU и KVM. Если QEMU нет:
+Скрипт сам ищет ISO рядом с собой, в текущей папке и в `~/Downloads`.
+Сначала берётся образ ровно той версии, что указана в `VERSION`
+(сейчас 1.4), а если его нет — самый новый из найденных: старые ISO
+рядом не должны запускаться по ошибке. Если QEMU нет:
 
 ```sh
 sudo apt install qemu-system-x86   # Debian/Ubuntu
@@ -154,7 +166,7 @@ qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 4 \
   -device qemu-xhci -device usb-tablet -vga virtio \
   -drive file=mvs.qcow2,if=none,id=mvsdisk,cache=writeback \
   -device virtio-blk-pci,drive=mvsdisk,iothread=mvsio \
-  -cdrom MVS-OS-1.0-amd64.iso -boot d
+  -cdrom MVS-OS-1.4-amd64.iso -boot d
 ```
 
 После установки — без `-cdrom` и с `-boot c`.
@@ -179,7 +191,7 @@ VLC, терминал, файлы, apt, обновления, сеть чере�
 
 ```sh
 qemu-system-x86_64 -enable-kvm -m 4096 -smp 4 \
-  -cdrom MVS-OS-1.0-amd64.iso -boot d \
+  -cdrom MVS-OS-1.4-amd64.iso -boot d \
   -drive file=/dev/sdb,format=raw,if=virtio
 ```
 

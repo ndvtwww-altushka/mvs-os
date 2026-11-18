@@ -84,13 +84,32 @@ find_iso() {
         printf '%s\n' "$MVS_ISO"
         return 0
     fi
+    # Сначала образ ровно этой версии: рядом на флешке часто остаются
+    # прошлые ISO, а запускать их по ошибке нельзя.
     for dir in "$ROOT" "$SELF" "$PWD" "${HOME:-$ROOT}/Downloads"; do
+        exact="$dir/MVS-OS-$VERSION-amd64.iso"
+        if [ -f "$exact" ]; then
+            printf '%s\n' "$exact"
+            return 0
+        fi
+    done
+    # Точной версии нет — берём самый новый из найденных, а не первый
+    # по алфавиту (иначе 1.0 перекрывает 1.4).
+    for dir in "$ROOT" "$SELF" "$PWD" "${HOME:-$ROOT}/Downloads"; do
+        found=""
         for candidate in "$dir"/MVS-OS-*-amd64.iso; do
-            if [ -f "$candidate" ]; then
-                printf '%s\n' "$candidate"
-                return 0
+            [ -f "$candidate" ] || continue
+            if [ -z "$found" ]; then
+                found=$candidate
+            elif command -v sort >/dev/null 2>&1 && \
+                 [ "$(printf '%s\n%s\n' "$found" "$candidate" | sort -V 2>/dev/null | tail -n 1)" = "$candidate" ]; then
+                found=$candidate
             fi
         done
+        if [ -n "$found" ]; then
+            printf '%s\n' "$found"
+            return 0
+        fi
     done
     return 1
 }
@@ -195,10 +214,12 @@ esac
 # рабочий стол Linux, а не гость. MVS_GRAB=1 включает захват — тогда
 # Alt+Tab переключает окна внутри MVS OS, а на хост ведёт Ctrl+Alt+G.
 if [ "$DISPLAY_MODE" = gtk ]; then
+    # zoom-to-fit: если окно меньше экрана гостя, картинка масштабируется,
+    # а не обрезается за края монитора.
     if [ "${MVS_GRAB:-0}" = 1 ]; then
-        DISPLAY_ARGS="gtk,grab-on-hover=on"
+        DISPLAY_ARGS="gtk,grab-on-hover=on,zoom-to-fit=on"
     else
-        DISPLAY_ARGS="gtk,grab-on-hover=off"
+        DISPLAY_ARGS="gtk,grab-on-hover=off,zoom-to-fit=on"
     fi
     if [ "${MVS_GL:-0}" = 1 ]; then
         DISPLAY_ARGS="$DISPLAY_ARGS,gl=on"
@@ -220,6 +241,11 @@ printf '  видео: %s, сеть: virtio, звук: %s\n' "$VGA" \
     "$([ "$AUDIO_ENABLED" -eq 1 ] && printf да || printf нет)"
 if [ -n "$ISO" ]; then
     printf '  ISO:   %s\n' "$ISO"
+    case "$(basename "$ISO")" in
+        "MVS-OS-$VERSION-amd64.iso") ;;
+        *) printf '  Внимание: ожидался MVS-OS-%s-amd64.iso, а выбран %s\n' \
+               "$VERSION" "$(basename "$ISO")" >&2 ;;
+    esac
 fi
 
 if [ "$MODE" = install ]; then
