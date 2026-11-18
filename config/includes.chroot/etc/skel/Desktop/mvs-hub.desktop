@@ -1,6 +1,7 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
+Name[ru]=Приложения
 Name=MVS Hub
 Comment=Все приложения системы
 Exec=mvs-hub

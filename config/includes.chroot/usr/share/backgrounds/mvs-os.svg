@@ -1,54 +1,60 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#16161e"/>
-      <stop offset="0.45" stop-color="#1a1b26"/>
-      <stop offset="1" stop-color="#24283b"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#0a0b12"/>
+      <stop offset="0.55" stop-color="#12131d"/>
+      <stop offset="1" stop-color="#1b1d2b"/>
     </linearGradient>
-    <radialGradient id="glow1" cx="0.2" cy="0.15" r="0.7">
-      <stop offset="0" stop-color="#7aa2f7" stop-opacity="0.28"/>
+    <radialGradient id="glowA" cx="0.14" cy="0.08" r="0.62">
+      <stop offset="0" stop-color="#7aa2f7" stop-opacity="0.30"/>
+      <stop offset="0.55" stop-color="#7aa2f7" stop-opacity="0.07"/>
       <stop offset="1" stop-color="#7aa2f7" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="glow2" cx="0.85" cy="0.8" r="0.6">
-      <stop offset="0" stop-color="#bb9af7" stop-opacity="0.18"/>
+    <radialGradient id="glowB" cx="0.9" cy="0.92" r="0.55">
+      <stop offset="0" stop-color="#bb9af7" stop-opacity="0.22"/>
       <stop offset="1" stop-color="#bb9af7" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#7aa2f7" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#7aa2f7" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#7aa2f7" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="mvs" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#7dcfff"/>
       <stop offset="0.55" stop-color="#7aa2f7"/>
       <stop offset="1" stop-color="#bb9af7"/>
     </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7aa2f7" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#7aa2f7" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="dots" width="36" height="36" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1.5" fill="#7aa2f7" opacity="0.10"/>
+    </pattern>
   </defs>
 
   <rect width="1920" height="1080" fill="url(#bg)"/>
-  <rect width="1920" height="1080" fill="url(#glow1)"/>
-  <rect width="1920" height="1080" fill="url(#glow2)"/>
+  <rect width="1920" height="1080" fill="url(#dots)"/>
+  <rect width="1920" height="1080" fill="url(#glowA)"/>
+  <rect width="1920" height="1080" fill="url(#glowB)"/>
 
-  <g opacity="0.35" fill="none" stroke="#414868" stroke-width="1">
-    <path d="M-120 720 C 260 620, 540 860, 900 760 S 1540 620, 2040 780"/>
-    <path d="M-120 790 C 260 690, 540 930, 900 830 S 1540 690, 2040 850"/>
-    <path d="M-120 860 C 260 760, 540 1000, 900 900 S 1540 760, 2040 920"/>
+  <!-- Большой знак справа: глубина без пестроты. -->
+  <g transform="translate(1230 330)" opacity="0.06" fill="none" stroke="#c0caf5"
+     stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 380V40l150 150L300 40v340"/>
   </g>
 
-  <rect x="120" y="180" width="520" height="1" fill="url(#line)"/>
-
-  <g transform="translate(120 240)">
-    <rect x="0" y="0" width="112" height="112" rx="26" fill="#1a1b26" stroke="#414868" stroke-width="2"/>
-    <path d="M28 82V30l28 28 28-28v52" fill="none" stroke="url(#mvs)" stroke-width="10"
+  <g transform="translate(120 300)">
+    <rect x="0" y="0" width="128" height="128" rx="30" fill="#161722"
+          stroke="url(#mark)" stroke-width="2.5"/>
+    <path d="M32 94V34l32 32 32-32v60" fill="none" stroke="url(#mark)" stroke-width="11"
           stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
-  <text x="120" y="430" font-family="Noto Sans, DejaVu Sans, sans-serif" font-size="58"
-        font-weight="700" fill="#c0caf5">MVS OS</text>
-  <text x="120" y="480" font-family="Noto Sans, DejaVu Sans, sans-serif" font-size="22"
-        fill="#7aa2f7">своя система · live · 0.1</text>
+  <text x="120" y="520" font-family="Noto Sans, DejaVu Sans, sans-serif" font-size="78"
+        font-weight="700" fill="#dbe3ff" letter-spacing="-1">MVS OS</text>
+  <text x="120" y="574" font-family="Noto Sans, DejaVu Sans, sans-serif" font-size="27"
+        fill="url(#mark)" font-weight="600">Aurora Nova</text>
+  <rect x="120" y="606" width="420" height="3" rx="1.5" fill="url(#rule)"/>
 
+  <text x="120" y="950" font-family="Noto Sans, DejaVu Sans, sans-serif" font-size="20"
+        fill="#565f89">своя система</text>
   <text x="1800" y="1010" text-anchor="end" font-family="Noto Sans, DejaVu Sans, sans-serif"
-        font-size="20" fill="#565f89">MVS OS · 2026</text>
+        font-size="19" fill="#414868" letter-spacing="2">MVS OS · 2026</text>
 </svg>

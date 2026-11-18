@@ -12,6 +12,10 @@ chmod 755 /usr/local/sbin/mvs-identity
 chmod 755 /usr/local/sbin/mvs-snapshot
 chmod 755 /usr/local/sbin/mvs-live-user
 chmod 755 /usr/local/sbin/mvs-boot-check
+chmod 755 /usr/local/bin/mvs-session-mode
+chmod 644 /etc/xdg/autostart/mvs-session-mode.desktop
+# Ярлыки на рабочем столе должны запускаться без вопроса «недоверенный».
+chmod 755 /etc/skel/Desktop/*.desktop
 chmod 755 /etc/grub.d/40_mvs_snapshots
 chmod 644 /etc/apt/apt.conf.d/99-mvs-identity
 chmod 644 /etc/systemd/system/mvs-identity.service

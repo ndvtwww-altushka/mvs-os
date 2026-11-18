@@ -22,9 +22,9 @@
     Это требует ручной проверки на железе или полноценного autopilot.
 
 Запуск:
-    python3 tests/qemu_smoke.py MVS-OS-1.4-amd64.iso
-    python3 tests/qemu_smoke.py --uefi MVS-OS-1.4-amd64.iso
-    python3 tests/qemu_smoke.py --secure-boot MVS-OS-1.4-amd64.iso
+    python3 tests/qemu_smoke.py MVS-OS-1.5-amd64.iso
+    python3 tests/qemu_smoke.py --uefi MVS-OS-1.5-amd64.iso
+    python3 tests/qemu_smoke.py --secure-boot MVS-OS-1.5-amd64.iso
 
 Переменные:
     MVS_QEMU_BOOT   секунд на загрузку (по умолчанию 180)

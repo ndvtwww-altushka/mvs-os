@@ -15,8 +15,8 @@
 #   MVS_ISO       путь к ISO (иначе ищется рядом со скриптом)
 #   MVS_VM_DISK   путь к диску VM (по умолчанию ~/.local/share/mvs-os/mvs.qcow2)
 #   MVS_VM_SIZE   размер нового диска (по умолчанию 24G)
-#   MVS_RAM       память в МБ (по умолчанию 4096)
-#   MVS_CPUS      число ядер (по умолчанию 4)
+#   MVS_RAM       память в МБ (по умолчанию — по памяти хоста)
+#   MVS_CPUS      число ядер (по умолчанию — по числу ядер хоста)
 #   MVS_VGA       auto, std или virtio (по умолчанию auto)
 #   MVS_NIC       параметры -nic (по умолчанию virtio-net)
 #   MVS_DISPLAY   gtk или sdl (по умолчанию выбирается автоматически)
@@ -41,8 +41,8 @@ fi
 
 VERSION=$(tr -d ' \n' < "$ROOT/VERSION" 2>/dev/null || printf '1.0')
 SIZE=${MVS_VM_SIZE:-24G}
-RAM=${MVS_RAM:-4096}
-CPUS=${MVS_CPUS:-4}
+RAM=${MVS_RAM:-}
+CPUS=${MVS_CPUS:-}
 VGA=${MVS_VGA:-auto}
 NIC=${MVS_NIC:-user,model=virtio-net-pci}
 AUDIO=${MVS_AUDIO:-auto}
@@ -69,7 +69,7 @@ MVS OS — виртуальная машина
 
 Переменные: MVS_ISO, MVS_VM_DISK, MVS_VM_SIZE, MVS_RAM, MVS_CPUS,
             MVS_VGA, MVS_NIC, MVS_DISPLAY, MVS_GL, MVS_AUDIO, MVS_GRAB,
-            MVS_NO_KVM, MVS_VERIFY.
+            MVS_NO_KVM, MVS_VERIFY, MVS_AUTO_FULLSCREEN=0.
 Диск по умолчанию: $DISK
 EOF
 }
@@ -94,7 +94,7 @@ find_iso() {
         fi
     done
     # Точной версии нет — берём самый новый из найденных, а не первый
-    # по алфавиту (иначе 1.0 перекрывает 1.4).
+    # по алфавиту (иначе старый образ перекрывает новый).
     for dir in "$ROOT" "$SELF" "$PWD" "${HOME:-$ROOT}/Downloads"; do
         found=""
         for candidate in "$dir"/MVS-OS-*-amd64.iso; do
@@ -112,6 +112,18 @@ find_iso() {
         fi
     done
     return 1
+}
+
+# Размер экрана хоста: нужен, чтобы окно гостя не уезжало за край.
+screen_size() {
+    command -v xrandr >/dev/null 2>&1 || return 1
+    size=$(xrandr --current 2>/dev/null | awk '
+        / connected/ {
+            for (i = 1; i <= NF; i++)
+                if ($i ~ /^[0-9]+x[0-9]+\+/) { split($i, a, "+"); print a[1]; exit }
+        }')
+    [ -n "$size" ] || return 1
+    printf '%s\n' "$size"
 }
 
 while [ $# -gt 0 ]; do
@@ -172,7 +184,33 @@ if [ "${MVS_NO_KVM:-0}" != "1" ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
 fi
 if [ "$KVM" -eq 0 ]; then
     printf 'Предупреждение: /dev/kvm недоступен, будет медленный программный режим.\n'
-    printf 'Обычно помогает: sudo usermod -aG kvm "$USER" и повторный вход.\n\n'
+    printf 'Обычно помогает: sudo usermod -aG kvm "$USER" и повторный вход.\n'
+    printf 'На реальном компьютере (загрузка с флешки) этих ограничений нет.\n\n'
+fi
+
+# Память и ядра — по возможностям хоста. Если отдать виртуальной машине
+# всю память, хост уходит в swap, и тормозит вообще всё.
+HOST_MB=$(awk '/^MemTotal:/ {printf "%d", $2 / 1024}' /proc/meminfo 2>/dev/null || printf 0)
+if [ -z "$RAM" ]; then
+    if [ "$HOST_MB" -ge 7500 ]; then
+        RAM=4096
+    elif [ "$HOST_MB" -ge 5000 ]; then
+        RAM=3072
+    elif [ "$HOST_MB" -ge 3500 ]; then
+        RAM=2048
+    else
+        RAM=1536
+    fi
+fi
+if [ -z "$CPUS" ]; then
+    HOST_CPU=$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf 2)
+    if [ "$KVM" -eq 1 ]; then
+        if [ "$HOST_CPU" -ge 4 ]; then CPUS=4; else CPUS=$HOST_CPU; fi
+    else
+        # Без KVM лишние ядра только мешают: потоки TCG конкурируют
+        # за один и тот же процессор.
+        if [ "$HOST_CPU" -ge 2 ]; then CPUS=2; else CPUS=$HOST_CPU; fi
+    fi
 fi
 
 # Выбираем графический бэкенд, который собран в этом QEMU.
@@ -228,12 +266,29 @@ else
     DISPLAY_ARGS=$DISPLAY_MODE
 fi
 
+# Гость просит 1280x800. Если монитор меньше, окно без полного экрана
+# обрезает панель снизу — со стороны это выглядит как «рабочий стол съехал».
+if [ "$FULLSCREEN" -eq 0 ] && [ "${MVS_AUTO_FULLSCREEN:-1}" = "1" ]; then
+    SCREEN=$(screen_size || true)
+    if [ -n "$SCREEN" ]; then
+        SCREEN_W=${SCREEN%x*}
+        SCREEN_H=${SCREEN#*x}
+        if [ "$SCREEN_W" -lt 1280 ] || [ "$SCREEN_H" -lt 800 ]; then
+            FULLSCREEN=1
+            AUTO_FS=$SCREEN
+        fi
+    fi
+fi
+
 if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && [ "$DISPLAY_MODE" != "none" ]; then
     printf 'Предупреждение: не видно графического сеанса (DISPLAY/WAYLAND_DISPLAY).\n'
     printf 'Запускайте скрипт из терминала на рабочем столе, а не по SSH.\n\n'
 fi
 
 printf '▸ MVS OS %s в окне QEMU\n' "$VERSION"
+if [ -n "${AUTO_FS:-}" ]; then
+    printf '  экран: %s — окно на весь экран (Ctrl+Alt+F — обратно)\n' "$AUTO_FS"
+fi
 printf '  режим: %s\n' "$MODE"
 printf '  RAM:   %s МБ, ядер: %s, KVM: %s\n' "$RAM" "$CPUS" \
     "$([ "$KVM" -eq 1 ] && printf да || printf нет)"
@@ -284,7 +339,9 @@ fi
 if [ "$KVM" -eq 1 ]; then
     set -- qemu-system-x86_64 -enable-kvm -cpu host
 else
-    set -- qemu-system-x86_64 -cpu max
+    # thread=multi — несколько потоков перевода кода, tb-size — кэш
+    # трансляции: без него QEMU постоянно пересобирает одни и те же блоки.
+    set -- qemu-system-x86_64 -accel tcg,thread=multi,tb-size=512 -cpu max
 fi
 set -- "$@" \
     -name "MVS OS $VERSION" \

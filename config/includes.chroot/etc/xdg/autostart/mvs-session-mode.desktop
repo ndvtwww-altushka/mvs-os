@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=MVS Session Mode
+Comment=Лёгкий режим в виртуальной машине без ускорения
+Exec=mvs-session-mode
+Icon=preferences-system
+Terminal=false
+NoDisplay=true
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true

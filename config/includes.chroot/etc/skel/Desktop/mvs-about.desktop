@@ -1,6 +1,7 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
+Name[ru]=О системе
 Name=MVS About
 Comment=Версия и оборудование
 Exec=mvs-about

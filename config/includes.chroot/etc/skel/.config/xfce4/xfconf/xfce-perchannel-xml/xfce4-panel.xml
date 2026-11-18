@@ -8,7 +8,7 @@
       <property name="length" type="uint" value="100"/>
       <property name="length-adjust" type="bool" value="false"/>
       <property name="position-locked" type="bool" value="true"/>
-      <property name="size" type="uint" value="38"/>
+      <property name="size" type="uint" value="42"/>
       <property name="background-style" type="uint" value="1"/>
       <property name="background-rgba" type="array">
         <value type="double" value="0.086"/>
@@ -38,6 +38,13 @@
       <property name="menu-width" type="uint" value="440"/>
       <property name="menu-height" type="uint" value="560"/>
       <property name="menu-opacity" type="uint" value="100"/>
+      <property name="favorites" type="array">
+        <value type="string" value="mvs-hub.desktop"/>
+        <value type="string" value="mvs-files.desktop"/>
+        <value type="string" value="firefox-esr.desktop"/>
+        <value type="string" value="mvs-terminal.desktop"/>
+        <value type="string" value="mvs-settings.desktop"/>
+      </property>
     </property>
     <property name="plugin-2" type="string" value="launcher">
       <property name="items" type="array">

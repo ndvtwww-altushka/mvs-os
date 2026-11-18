@@ -1,6 +1,7 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
+Name[ru]=Игры
 Name=MVS Games
 Comment=Пять мини-игр
 Exec=mvs-games

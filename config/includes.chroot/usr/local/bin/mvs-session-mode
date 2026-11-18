@@ -1,0 +1,84 @@
+#!/bin/sh
+# MVS OS — режим оформления под возможности компьютера.
+#
+# Один и тот же образ должен хорошо выглядеть и на железе, и в виртуальной
+# машине без аппаратного ускорения. На железе и под KVM работает полный
+# режим: композитор, тени, анимации. В программной эмуляции QEMU (TCG)
+# каждый кадр рисуется процессором, поэтому тени и анимации превращают
+# рабочий стол в слайд-шоу — там включается лёгкий режим.
+#
+# Определяем по строке гипервизора в CPUID: KVM сообщает «KVM», QEMU без
+# ускорения — «TCG». Если гипервизора нет, это обычный компьютер.
+#
+# Переопределить решение можно переменной MVS_SESSION_MODE=rich|lite.
+
+set -u
+
+MODE=${MVS_SESSION_MODE:-auto}
+LOG="${XDG_CACHE_HOME:-$HOME/.cache}/mvs-session-mode.log"
+mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
+say() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" >>"$LOG" 2>/dev/null || true; }
+
+detect() {
+    # LC_ALL=C: иначе в русской локали lscpu печатает «Гипервизор»,
+    # и шаблон ниже не совпадёт.
+    vendor=""
+    model=""
+    if command -v lscpu >/dev/null 2>&1; then
+        info=$(LC_ALL=C lscpu 2>/dev/null)
+        vendor=$(printf '%s\n' "$info" | sed -n 's/^Hypervisor vendor:[[:space:]]*//p' | head -n 1)
+        model=$(printf '%s\n' "$info" | sed -n 's/^Model name:[[:space:]]*//p' | head -n 1)
+    fi
+
+    # Второй признак: QEMU без KVM всегда представляет процессор как
+    # «QEMU Virtual CPU», даже если строку гипервизора не показали.
+    case "$model" in
+        *QEMU*Virtual*) printf 'lite'; return 0 ;;
+    esac
+
+    case "$vendor" in
+        KVM*) printf 'rich' ;;
+        '')   printf 'rich' ;;
+        *)    printf 'lite' ;;
+    esac
+}
+
+[ "$MODE" = auto ] && MODE=$(detect)
+
+say "гипервизор: ${vendor:-нет}, процессор: ${model:-неизвестен}, режим: $MODE"
+
+# xfconfd поднимается вместе с сеансом; ждём его, но не бесконечно.
+i=0
+while [ "$i" -lt 40 ]; do
+    if xfconf-query -c xfwm4 -p /general/theme >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+    i=$((i + 1))
+done
+
+set_bool() {
+    channel=$1
+    prop=$2
+    value=$3
+    if xfconf-query -c "$channel" -p "$prop" >/dev/null 2>&1; then
+        xfconf-query -c "$channel" -p "$prop" -s "$value" >/dev/null 2>&1 || true
+    else
+        xfconf-query -c "$channel" -p "$prop" -n -t bool -s "$value" >/dev/null 2>&1 || true
+    fi
+}
+
+if [ "$MODE" = lite ]; then
+    # Программный рендеринг: убираем всё, что заставляет перерисовывать
+    # экран лишний раз.
+    set_bool xfwm4 /general/use_compositing false
+    set_bool xsettings /Gtk/EnableAnimations false
+    set_bool xsettings /Gtk/EnableEventSounds false
+    say "лёгкий режим включён"
+else
+    set_bool xfwm4 /general/use_compositing true
+    set_bool xsettings /Gtk/EnableAnimations true
+    say "полный режим включён"
+fi
+
+exit 0
