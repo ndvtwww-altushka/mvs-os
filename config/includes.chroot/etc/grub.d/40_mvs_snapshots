@@ -1,0 +1,76 @@
+#!/bin/sh
+# MVS OS — пункт «откат» в меню GRUB для каждого снимка btrfs.
+#
+# Скрипт вызывается grub-mkconfig (update-grub). Он ничего не меняет
+# в системе: только печатает menuentry для снимков из @snapshots.
+# Любая ошибка здесь не должна ломать обновление GRUB, поэтому при
+# неподходящей системе скрипт молча выходит с кодом 0.
+
+set -eu
+
+LIMIT=6
+
+root_fs=$(awk '$2 == "/" { print $3; exit }' /proc/mounts)
+[ "$root_fs" = "btrfs" ] || exit 0
+
+root_dev=$(awk '$2 == "/" { print $1; exit }' /proc/mounts)
+# LUKS и LVM требуют отдельных модулей GRUB и пароля при загрузке.
+# Такие системы сюда не попадают: лучше no entries, чем нерабочий пункт.
+case "$root_dev" in
+    /dev/mapper/* | /dev/dm-*) exit 0 ;;
+esac
+
+command -v btrfs >/dev/null 2>&1 || exit 0
+
+UUID=$(grub-probe --target=fs_uuid / 2>/dev/null || true)
+[ -n "$UUID" ] || exit 0
+
+# btrfs subvolume list показывает пути от корня файловой системы,
+# поэтому @snapshots виден даже когда он не смонтирован в /mvs-snapshots.
+snapshots=$(btrfs subvolume list / 2>/dev/null \
+    | sed -n 's|.* path @snapshots/||p' \
+    | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}_.+__k[0-9]' \
+    | sort -r || true)
+
+[ -n "$snapshots" ] || exit 0
+
+printf "submenu 'MVS OS — откат к снимкам' {\n"
+
+count=0
+for name in $snapshots; do
+    count=$((count + 1))
+    [ "$count" -le "$LIMIT" ] || break
+
+    kernel=${name##*__k}
+    base=${name%__k*}
+    date=${base%%_*}
+    rest=${base#*_}
+    time=${rest%%_*}
+    reason=${rest#*_}
+
+    pretty_time=$(printf '%s' "$time" | tr '-' ':')
+    title="$date $pretty_time"
+    [ "$reason" = "$time" ] || title="$title · $reason"
+
+    # Снимок грузится своим ядром. Путь /@snapshots/... виден GRUB,
+    # потому что @snapshots лежит в корне файловой системы; запасной
+    # путь /boot/... нужен на случай, если GRUB показывает дерево
+    # от субтома по умолчанию.
+    cat <<EOF
+menuentry 'MVS OS — снимок $title' --class mvs --class gnu-linux --class os {
+    insmod btrfs
+    insmod part_gpt
+    insmod part_msdos
+    search --no-floppy --fs-uuid --set=root $UUID
+    if [ -e /@snapshots/$name/boot/vmlinuz-$kernel ]; then
+        set mvs_prefix=/@snapshots/$name
+    else
+        set mvs_prefix=
+    fi
+    linux \${mvs_prefix}/boot/vmlinuz-$kernel root=UUID=$UUID rootflags=subvol=/@snapshots/$name ro quiet splash
+    initrd \${mvs_prefix}/boot/initrd.img-$kernel
+}
+EOF
+done
+
+printf "}\n"

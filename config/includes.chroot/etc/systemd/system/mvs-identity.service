@@ -1,0 +1,14 @@
+[Unit]
+Description=MVS OS — идентичность системы (os-release)
+Documentation=file:/usr/local/sbin/mvs-identity
+ConditionPathExists=/etc/mvs-version
+After=local-fs.target
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mvs-identity
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

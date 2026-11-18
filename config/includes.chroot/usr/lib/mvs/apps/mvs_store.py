@@ -171,8 +171,8 @@ class Store(ui.MvsWindow):
         self.add_page("log", "Журнал", "text-x-generic", log_page)
         self.select("sets")
 
-        self.fill_sets()
         self.set_status(self.indexes_text())
+        self.load_installed()
 
     # -- статус -------------------------------------------------------------
 
@@ -184,6 +184,25 @@ class Store(ui.MvsWindow):
     def set_status(self, text):
         for label in self.status_labels:
             label.set_text(text)
+
+    def load_installed(self, done_text=None):
+        """dpkg-query в фоне: первый запуск не должен подвешивать окно."""
+        self._installed_done_text = done_text
+        self.set_status("Читаем список установленных программ…")
+        ui.background(self.read_installed, on_done=self.after_installed)
+
+    def read_installed(self):
+        invalidate_installed()
+        return installed_packages(refresh=True)
+
+    def after_installed(self, result):
+        if isinstance(result, Exception):
+            self.set_status("Не удалось прочитать список программ: %s" % result)
+            self.fill_sets()
+            return
+        self.set_status(getattr(self, "_installed_done_text", None)
+                        or self.indexes_text())
+        self.fill_sets()
 
     # -- данные -------------------------------------------------------------
 
@@ -266,7 +285,22 @@ class Store(ui.MvsWindow):
             ui.info(self, "Сначала загрузите индексы пакетов: кнопка «Обновить индексы».")
             return
 
-        available = [name for name in packages if package_available(name)]
+        self.set_status("Проверяем пакеты набора «%s»…" % item.get("name", ""))
+        ui.background(
+            self.group_available,
+            packages,
+            on_done=lambda result: self.confirm_group(item, packages, result),
+        )
+
+    def group_available(self, packages):
+        return [name for name in packages if package_available(name)]
+
+    def confirm_group(self, item, packages, result):
+        if isinstance(result, Exception):
+            ui.error(self, "Не удалось проверить пакеты:\n%s" % result)
+            self.set_status("Проверка не удалась.")
+            return
+        available = result
         missing = [name for name in packages if name not in available]
         if not available:
             ui.error(
@@ -274,6 +308,7 @@ class Store(ui.MvsWindow):
                 "Ни один пакет набора не найден в подключённых репозиториях:\n%s"
                 % ", ".join(missing),
             )
+            self.set_status("Пакеты набора не найдены.")
             return
 
         if missing:
@@ -283,12 +318,12 @@ class Store(ui.MvsWindow):
             "Установить «%s»?\n\nПакеты: %s\n\nБудет скачано и установлено %d программ."
             % (item.get("name", ""), ", ".join(available), len(available)),
         ):
+            self.set_status("Установка отменена.")
             return
 
-        command = ui.priv_prefix() + ["apt-get", "install", "-y"] + available
         self.set_status("Установка набора «%s»…" % item.get("name", ""))
         self.select("log")
-        ui.stream(command, self.log, self.after_change)
+        ui.apt_stream(["install"] + available, self.log, self.after_change)
 
     def remove_group(self, item):
         packages = [name for name in item.get("packages", []) if isinstance(name, str)]
@@ -301,10 +336,9 @@ class Store(ui.MvsWindow):
             % (item.get("name", ""), ", ".join(packages)),
         ):
             return
-        command = ui.priv_prefix() + ["apt-get", "remove", "-y"] + packages
         self.set_status("Удаление набора «%s»…" % item.get("name", ""))
         self.select("log")
-        ui.stream(command, self.log, self.after_change)
+        ui.apt_stream(["remove"] + packages, self.log, self.after_change)
 
     # -- поиск --------------------------------------------------------------
 
@@ -316,14 +350,28 @@ class Store(ui.MvsWindow):
         if len(term) < 2:
             self.show_results_hint("Введите хотя бы два символа.")
             return
+        self.set_status("Ищем «%s»…" % term)
+        ui.background(self.search_worker, term, on_done=self.apply_search)
 
-        code, text, _err = ui.run(["apt-cache", "search", "--names-only", term], timeout=30)
+    def search_worker(self, term):
+        return ui.run(
+            ["apt-cache", "search", "--names-only", term],
+            timeout=90,
+            env=dict(os.environ, **ui.APT_ENV),
+        )
+
+    def apply_search(self, result):
+        if isinstance(result, Exception):
+            self.show_results_hint("Поиск не удался: %s" % result)
+            return
+        code, text, _err = result
         for child in self.results.get_children():
             self.results.remove(child)
 
         if code != 0:
             self.results.add(ui.subtle("apt-cache не ответил. Обновите индексы."))
             self.results.show_all()
+            self.set_status("Поиск не удался.")
             return
 
         count = 0
@@ -353,8 +401,10 @@ class Store(ui.MvsWindow):
             self.results.add(ui.row(name, description.strip()[:110], action, badge))
 
         if count == 0:
-            self.results.add(ui.subtle("Ничего не найдено по запросу «%s»." % term))
+            self.results.add(ui.subtle("Ничего не найдено по запросу «%s»."
+                                       % self.search_entry.get_text().strip()))
         self.results.show_all()
+        self.set_status("Найдено: %d (показаны первые 40)." % count)
 
     def show_results_hint(self, text):
         for child in self.results.get_children():
@@ -367,7 +417,7 @@ class Store(ui.MvsWindow):
     def update_indexes(self):
         self.set_status("Загрузка индексов пакетов…")
         self.select("log")
-        ui.stream(ui.priv_prefix() + ["apt-get", "update"], self.log, self.after_indexes)
+        ui.apt_stream(["update"], self.log, self.after_indexes)
 
     def after_indexes(self, code):
         if code == 0:
@@ -379,10 +429,9 @@ class Store(ui.MvsWindow):
             self.set_status("Не удалось обновить индексы. Проверьте интернет.")
 
     def install_package(self, name, auto=False):
-        command = ui.priv_prefix() + ["apt-get", "install", "-y", name]
         self.set_status("Установка %s…" % name)
         self.select("log")
-        ui.stream(command, self.log, self.after_change)
+        ui.apt_stream(["install", name], self.log, self.after_change)
 
     def remove_package(self, name):
         if not ui.confirm(
@@ -390,10 +439,9 @@ class Store(ui.MvsWindow):
             "Удалить %s?\n\nВместе с программой могут удалиться её зависимости." % name,
         ):
             return
-        command = ui.priv_prefix() + ["apt-get", "remove", "-y", name]
         self.set_status("Удаление %s…" % name)
         self.select("log")
-        ui.stream(command, self.log, self.after_change)
+        ui.apt_stream(["remove", name], self.log, self.after_change)
 
     def after_change(self, code):
         if code == 0:
@@ -401,8 +449,7 @@ class Store(ui.MvsWindow):
             ui.notify("MVS Store: изменения применены")
         else:
             self.set_status("Команда завершилась с ошибкой, смотрите журнал.")
-        invalidate_installed()
-        self.fill_sets()
+        self.load_installed("Готово.")
         if self.search_entry.get_text().strip():
             self.search()
 

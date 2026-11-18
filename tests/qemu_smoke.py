@@ -10,19 +10,23 @@
 Режимы:
     BIOS (по умолчанию) — обычная загрузка, как на старом ПК.
     --uefi              — загрузка через OVMF, проверка UEFI-пути.
+    --secure-boot       — UEFI с включённой проверкой подписи (shim + GRUB).
 
 Чего тест НЕ проверяет (честно):
     работоспособность установщика, звук, Wi-Fi, реальные драйверы.
     Это требует ручной проверки на железе или полноценного autopilot.
 
 Запуск:
-    python3 tests/qemu_smoke.py MVS-OS-1.0-amd64.iso
-    python3 tests/qemu_smoke.py --uefi MVS-OS-1.0-amd64.iso
+    python3 tests/qemu_smoke.py MVS-OS-1.4-amd64.iso
+    python3 tests/qemu_smoke.py --uefi MVS-OS-1.4-amd64.iso
+    python3 tests/qemu_smoke.py --secure-boot MVS-OS-1.4-amd64.iso
 
 Переменные:
     MVS_QEMU_BOOT   секунд на загрузку (по умолчанию 180)
     MVS_OVMF        путь к OVMF_CODE или объединённому OVMF.fd
     MVS_OVMF_VARS   путь к OVMF_VARS (если не угадывается рядом)
+    MVS_OVMF_SECBOOT       OVMF_CODE с поддержкой Secure Boot
+    MVS_OVMF_SECBOOT_VARS  переменные OVMF с ключами Microsoft
 """
 
 import os
@@ -44,6 +48,15 @@ OVMF_COMBINED = [
     "/usr/share/ovmf/OVMF.fd",
     "/usr/share/OVMF/OVMF.fd",
     "/usr/share/qemu/OVMF.fd",
+]
+
+# Secure Boot: OVMF с SMM и ключами Microsoft. Прошивка проверит подпись
+# shim (BOOTX64.EFI), shim — подпись GRUB, и только потом ядро.
+OVMF_SECBOOT_PAIRS = [
+    ("/usr/share/OVMF/OVMF_CODE_4M.secboot.fd", "/usr/share/OVMF/OVMF_VARS_4M.ms.fd"),
+    ("/usr/share/OVMF/OVMF_CODE.secboot.fd", "/usr/share/OVMF/OVMF_VARS.ms.fd"),
+    ("/usr/share/ovmf/OVMF_CODE_4M.secboot.fd", "/usr/share/ovmf/OVMF_VARS_4M.ms.fd"),
+    ("/usr/share/OVMF/OVMF_CODE.secboot.fd", "/usr/share/OVMF/OVMF_VARS_4M.ms.fd"),
 ]
 
 
@@ -85,6 +98,34 @@ def uefi_arguments(vars_copy):
     return ["-bios", code]
 
 
+def secure_boot_arguments(vars_copy):
+    """QEMU с включённой проверкой подписи загрузчика."""
+    code = os.environ.get("MVS_OVMF_SECBOOT", "")
+    vars_path = os.environ.get("MVS_OVMF_SECBOOT_VARS", "")
+
+    if not code:
+        for candidate_code, candidate_vars in OVMF_SECBOOT_PAIRS:
+            if os.path.isfile(candidate_code):
+                code = candidate_code
+                if not vars_path and os.path.isfile(candidate_vars):
+                    vars_path = candidate_vars
+                break
+
+    if not code or not vars_path:
+        raise RuntimeError(
+            "нет OVMF для Secure Boot: sudo apt install ovmf "
+            "(или задайте MVS_OVMF_SECBOOT и MVS_OVMF_SECBOOT_VARS)"
+        )
+
+    shutil.copyfile(vars_path, vars_copy)
+    return [
+        "-machine", "q35,smm=on",
+        "-global", "driver=cfi.pflash01,property=secure,value=on",
+        "-drive", "if=pflash,format=raw,readonly=on,file=%s" % code,
+        "-drive", "if=pflash,format=raw,file=%s" % vars_copy,
+    ]
+
+
 def wait_for_socket(path, timeout=30):
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -103,8 +144,15 @@ def monitor_command(sock, text):
         pass
 
 
-def ppm_is_not_blank(path):
-    """PPM (P6) — заголовок из 3 строк, дальше RGB-данные."""
+def screen_state(path):
+    """Похож ли снимок на загруженную систему, а не на экран ошибки.
+
+    Ошибка Secure Boot в OVMF — это чёрный фон и несколько строк текста.
+    Рабочий стол или экран входа — это заливка, значки и градиенты.
+    Поэтому смотрим долю «цветных» точек и число оттенков, а не просто
+    «файл не пустой»: иначе сообщение «Secure Boot violation» прошло бы
+    как успешная загрузка.
+    """
     with open(path, "rb") as handle:
         data = handle.read()
     if not data.startswith(b"P6"):
@@ -118,20 +166,40 @@ def ppm_is_not_blank(path):
         start = position
         while position < len(data) and not data[position:position + 1].isspace():
             position += 1
+        if position >= len(data):
+            break
         fields.append(int(data[start:position]))
     pixels = data[position + 1:]
-    if len(pixels) < 300:
+    if len(fields) < 3 or len(pixels) < 3000:
         return False, "в снимке нет пикселей"
-    sample = pixels[: 3 * 20000]
-    return len(set(sample)) > 24, "уникальных байт: %d" % len(set(sample))
+
+    # Шаг кратен трём байтам, иначе RGB-каналы разъедутся.
+    step = max(3, (len(pixels) // 3 // 40000) * 3)
+    colors = set()
+    colored = 0
+    samples = 0
+    for offset in range(0, len(pixels) - 2, step):
+        red, green, blue = pixels[offset], pixels[offset + 1], pixels[offset + 2]
+        colors.add((red >> 3, green >> 3, blue >> 3))
+        if red + green + blue > 36:
+            colored += 1
+        samples += 1
+
+    share = colored / samples if samples else 0.0
+    detail = "цветных точек %.0f%%, оттенков %d" % (share * 100, len(colors))
+    return share >= 0.04 and len(colors) >= 24, detail
 
 
 def main(argv):
     uefi = False
+    secure_boot = False
     paths = []
     for arg in argv[1:]:
         if arg == "--uefi":
             uefi = True
+        elif arg == "--secure-boot":
+            uefi = True
+            secure_boot = True
         elif arg in ("-h", "--help"):
             print(__doc__)
             return 0
@@ -150,7 +218,12 @@ def main(argv):
         print("ISO не найден: %s" % iso, file=sys.stderr)
         return 2
 
-    suffix = "-uefi" if uefi else ""
+    if secure_boot:
+        suffix = "-secureboot"
+    elif uefi:
+        suffix = "-uefi"
+    else:
+        suffix = ""
     monitor = "/tmp/mvs-qemu-monitor%s.sock" % suffix
     screenshot = "boot%s.ppm" % suffix
     serial = "serial%s.log" % suffix
@@ -173,14 +246,26 @@ def main(argv):
         "-serial", "file:%s" % serial,
     ]
 
-    if uefi:
+    if secure_boot:
+        try:
+            command.extend(secure_boot_arguments(vars_copy))
+        except RuntimeError as exc:
+            print("FAIL: %s" % exc, file=sys.stderr)
+            return 2
+    elif uefi:
         try:
             command.extend(uefi_arguments(vars_copy))
         except RuntimeError as exc:
             print("FAIL: %s" % exc, file=sys.stderr)
             return 2
 
-    print("Режим: %s" % ("UEFI (OVMF)" if uefi else "BIOS"))
+    if secure_boot:
+        mode_name = "UEFI + Secure Boot"
+    elif uefi:
+        mode_name = "UEFI (OVMF)"
+    else:
+        mode_name = "BIOS"
+    print("Режим: %s" % mode_name)
     print("$ %s" % " ".join(command))
     with open(log, "wb") as handle:
         process = subprocess.Popen(command, stdout=handle, stderr=subprocess.STDOUT)
@@ -216,7 +301,7 @@ def main(argv):
         print("FAIL: снимок экрана не создан")
         return 1
 
-    ok, detail = ppm_is_not_blank(screenshot)
+    ok, detail = screen_state(screenshot)
     print("%s: %s" % ("OK" if ok else "FAIL", detail))
 
     serial_text = ""

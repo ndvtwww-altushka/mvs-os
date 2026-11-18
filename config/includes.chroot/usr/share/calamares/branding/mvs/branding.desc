@@ -1,14 +1,14 @@
 ---
-# MVS OS 1.0 «Aurora» — оформление установщика.
+# MVS OS — оформление установщика.
 componentName: mvs
 
 strings:
     productName: MVS OS
     shortProductName: MVS
-    version: 1.0
-    shortVersion: "1.0"
-    versionedName: MVS OS 1.0 «Aurora»
-    shortVersionedName: MVS 1.0
+    version: "@VERSION@"
+    shortVersion: "@VERSION@"
+    versionedName: MVS OS @VERSION@ «@CODENAME@»
+    shortVersionedName: MVS @VERSION@
     bootloaderEntryName: MVS OS
     productUrl: "https://github.com/"
     supportUrl: "https://github.com/"

@@ -1,5 +1,5 @@
 #!/bin/sh
-# MVS OS 1.0 «Aurora» — сборка Live ISO через live-build.
+# MVS OS — сборка Live ISO через live-build. Версия берётся из файла VERSION.
 #
 # Локально:
 #   sudo sh ./build.sh
@@ -7,17 +7,21 @@
 # xorriso, интернет и ~12 ГБ свободного места.
 #
 # В GitHub Actions этот же скрипт запускает .github/workflows/build.yml.
-# Результат: MVS-OS-1.0-amd64.iso, .iso.sha256 и SHA256SUMS.
+# Результат: MVS-OS-<версия>-amd64.iso, .iso.sha256 и SHA256SUMS.
 
 set -eu
 
-VERSION="1.0"
-NAME="MVS-OS-${VERSION}-amd64"
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 BUILD="$ROOT/build"
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'Ошибка: %s\n' "$*" >&2; exit 1; }
+
+VERSION=$(tr -d ' \n' < "$ROOT/VERSION" 2>/dev/null || true)
+CODENAME=$(tr -d ' \n' < "$ROOT/CODENAME" 2>/dev/null || true)
+[ -n "$VERSION" ] || die "пустой или отсутствует файл VERSION"
+[ -n "$CODENAME" ] || CODENAME="Aurora Nova"
+NAME="MVS-OS-${VERSION}-amd64"
 
 say "▸ проверка окружения"
 
@@ -42,7 +46,7 @@ say "▸ проверка имён пакетов по архиву Debian"
 sh "$ROOT/tools/check-packages.sh" \
     || die "имена пакетов не совпали с архивом Debian (см. вывод выше)"
 
-say "▸ MVS OS ${VERSION} «Aurora»"
+say "▸ MVS OS ${VERSION} «${CODENAME}»"
 say "  проект: $ROOT"
 say "  сборка: $BUILD"
 
@@ -89,6 +93,42 @@ lb config \
 # Наши настройки поверх сгенерированных live-build'ом.
 cp -a "$ROOT/config/." config/
 
+# Версия и кодовое имя — из одного файла VERSION/CODENAME.
+# Эти файлы читают приложения MVS и mvs-identity, поэтому в образе
+# не может оказаться «1.0» из старого статического os-release.
+mkdir -p config/includes.chroot/etc
+printf '%s\n' "$VERSION" > config/includes.chroot/etc/mvs-version
+printf '%s\n' "$CODENAME" > config/includes.chroot/etc/mvs-codename
+cat > config/includes.chroot/etc/os-release <<EOF
+PRETTY_NAME="MVS OS $VERSION (Live)"
+NAME="MVS OS"
+VERSION_ID="$VERSION"
+VERSION="$VERSION «$CODENAME» (Live)"
+VERSION_CODENAME=bookworm
+ID=mvs
+ID_LIKE=debian
+HOME_URL="https://github.com/ndvtwww-altushka/mvs-os"
+MVS_VERSION="$VERSION"
+MVS_EDITION="$CODENAME"
+MVS_MODE="live"
+EOF
+cat > config/includes.chroot/etc/lsb-release <<EOF
+DISTRIB_ID=MVS
+DISTRIB_RELEASE=$VERSION
+DISTRIB_CODENAME=mvs
+DISTRIB_DESCRIPTION="MVS OS $VERSION «$CODENAME»"
+EOF
+
+# Шаблоны интерфейса: версия в них не вписана руками, а подставляется
+# из VERSION/CODENAME. Так номер меняется в одном файле.
+for tpl in \
+    config/includes.chroot/etc/issue \
+    config/includes.chroot/etc/issue.net \
+    config/includes.chroot/usr/share/calamares/branding/mvs/branding.desc; do
+    [ -f "$tpl" ] || continue
+    sed -i "s/@VERSION@/$VERSION/g; s/@CODENAME@/$CODENAME/g" "$tpl"
+done
+
 # Права после копирования. Исходники могут лежать на FUSE (телефон),
 # FAT/exFAT (флешка) или в ZIP с Windows — там chmod не сохраняется,
 # и все файлы приезжают как 0660. Для системы это означает, что
@@ -99,6 +139,8 @@ find config -type d -exec chmod 755 {} + 2>/dev/null || true
 find config -type f -exec chmod 644 {} + 2>/dev/null || true
 chmod 755 config/hooks/live/*.hook.chroot 2>/dev/null || true
 chmod 755 config/includes.chroot/usr/local/bin/* 2>/dev/null || true
+chmod 755 config/includes.chroot/usr/local/sbin/* 2>/dev/null || true
+chmod 755 config/includes.chroot/etc/grub.d/40_mvs_snapshots 2>/dev/null || true
 chmod 755 config/includes.chroot/usr/local/share/mvs-os/games/*.sh 2>/dev/null || true
 chmod 755 config/includes.chroot/etc/skel/Desktop/*.desktop 2>/dev/null || true
 # sudo требует, чтобы файлы sudoers не были доступны на запись группе/другим.
@@ -140,7 +182,7 @@ SIZE_BYTES=$(wc -c < "${NAME}.iso" | tr -d ' ')
 SIZE_HUMAN=$(du -h "${NAME}.iso" | cut -f1)
 
 {
-    printf 'MVS OS %s «Aurora»\n' "$VERSION"
+    printf 'MVS OS %s «%s»\n' "$VERSION" "$CODENAME"
     printf 'Собрано: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
     printf 'Коммит: %s\n' "${GITHUB_SHA:-локальная сборка}"
     printf 'Файл: %s\n' "${NAME}.iso"

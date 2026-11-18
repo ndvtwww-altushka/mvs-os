@@ -1,0 +1,39 @@
+#!/bin/sh
+# MVS OS — идентичность и инструменты обслуживания внутри образа.
+#
+# Репозиторий может лежать на FAT/exFAT, где права не хранятся, поэтому
+# исполняемые биты выставляются здесь. Здесь же создаётся маркер Live:
+# по нему mvs-identity понимает, что образ загрузочный, а не установленный.
+set -e
+
+echo "▸ MVS OS: идентичность и снимки"
+
+chmod 755 /usr/local/sbin/mvs-identity
+chmod 755 /usr/local/sbin/mvs-snapshot
+chmod 755 /etc/grub.d/40_mvs_snapshots
+chmod 644 /etc/apt/apt.conf.d/99-mvs-identity
+chmod 644 /etc/systemd/system/mvs-identity.service
+
+install -d -m 755 /etc/systemd/system/multi-user.target.wants
+ln -sf /etc/systemd/system/mvs-identity.service \
+    /etc/systemd/system/multi-user.target.wants/mvs-identity.service
+
+# Каталог снимков существует в образе, чтобы установщик мог смонтировать
+# в него субтом @snapshots (и на ext4 он просто останется пустым).
+install -d -m 755 /mvs-snapshots
+
+# Маркер загрузочного образа. Установщик удаляет его, после чего
+# mvs-identity пишет имя системы без пометки «Live».
+: > /etc/mvs-live
+chmod 644 /etc/mvs-live
+
+/usr/local/sbin/mvs-identity
+
+# Проверка результата: если идентичность не записалась, сборка должна
+# упасть здесь, а не после публикации релиза.
+if ! grep -q '^ID=mvs$' /etc/os-release; then
+    echo "ОШИБКА: /etc/os-release не содержит ID=mvs" >&2
+    exit 1
+fi
+
+echo "▸ MVS OS: идентичность и снимки готовы"

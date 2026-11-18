@@ -1,5 +1,5 @@
 
-  MVS OS 1.0 «Aurora»
+  MVS OS @VERSION@ «@CODENAME@»
   Debian 12 · XFCE · MVS
 
   Вход: пользователь mvs (Live), пароля нет.

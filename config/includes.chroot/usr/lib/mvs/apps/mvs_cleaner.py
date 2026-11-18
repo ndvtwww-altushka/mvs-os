@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""MVS Cleaner — безопасная очистка кэшей, журналов и корзины."""
+"""MVS Cleaner — безопасная очистка кэшей, журналов и корзины.
+
+Размеры считаются в фоне (os.walk, без внешнего du), очистка тоже идёт
+в отдельном потоке: окно не замирает и показывает журнал по шагам.
+"""
 
 import os
 import shutil
@@ -16,17 +20,19 @@ import mvsui as ui  # noqa: E402
 
 
 def dir_size(path):
-    code, text, _err = ui.run(["du", "-sb", path], timeout=30)
-    if code != 0 or not text:
-        return 0
-    try:
-        return int(text.split()[0])
-    except (ValueError, IndexError):
-        return 0
+    """Размер папки без du: не блокирует интерфейс и терпит ошибки чтения."""
+    total = 0
+    for root, _dirs, files in os.walk(path, onerror=lambda _exc: None):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(root, name)).st_size
+            except OSError:
+                pass
+    return total
 
 
 def clear_directory(path):
-    """Удаляет содержимое папки, саму папку оставляет."""
+    """Удаляет содержимое папки, саму папку оставляет. Возвращает байты."""
     removed = 0
     try:
         entries = list(os.scandir(path))
@@ -96,6 +102,7 @@ class Cleaner(ui.MvsWindow):
         self.log = ui.LogView(180)
         self.total = ui.label("—", "mvs-big")
         self.rows = []
+        self.busy = False
 
         box = Gtk.ListBox()
         box.set_selection_mode(Gtk.SelectionMode.NONE)
@@ -111,11 +118,13 @@ class Cleaner(ui.MvsWindow):
             line = ui.row(target["name"], target["description"], size, check)
             box.add(line)
 
-        action_row = ui.hbox(10)
-        action_row.pack_start(ui.button("Оценить заново", self.refresh), False, False, 0)
-        action_row.pack_start(
-            ui.button("Очистить выбранное", self.clean, "mvs-button accent"), False, False, 0
+        self.refresh_button = ui.button("Оценить заново", self.refresh)
+        self.clean_button = ui.button(
+            "Очистить выбранное", self.clean, "mvs-button accent"
         )
+        action_row = ui.hbox(10)
+        action_row.pack_start(self.refresh_button, False, False, 0)
+        action_row.pack_start(self.clean_button, False, False, 0)
 
         page = ui.page(
             ui.h1("MVS Cleaner"),
@@ -136,9 +145,33 @@ class Cleaner(ui.MvsWindow):
 
         self.refresh()
 
+    def set_busy(self, busy):
+        self.busy = busy
+        self.clean_button.set_sensitive(not busy)
+        self.refresh_button.set_sensitive(not busy)
+
     def refresh(self, _button=None):
+        if self.busy:
+            return
         for target in self.rows:
-            size = dir_size(target["path"]) if os.path.exists(target["path"]) else 0
+            target["size_label"].set_text("…")
+        self.total.set_text("…")
+        paths = {target["id"]: target["path"] for target in self.rows}
+        ui.background(self.measure, paths, on_done=self.apply_sizes)
+
+    def measure(self, paths):
+        result = {}
+        for key, path in paths.items():
+            result[key] = dir_size(path) if os.path.exists(path) else 0
+        return result
+
+    def apply_sizes(self, result):
+        if isinstance(result, Exception):
+            self.total.set_text("—")
+            self.log.append("Не удалось посчитать размеры: %s" % result)
+            return
+        for target in self.rows:
+            size = result.get(target["id"], 0)
             target["size"] = size
             target["size_label"].set_text(ui.human_bytes(size) if size else "пусто")
         self.update_total()
@@ -151,6 +184,8 @@ class Cleaner(ui.MvsWindow):
         self.total.set_text(ui.human_bytes(total))
 
     def clean(self, _button):
+        if self.busy:
+            return
         selected = [t for t in self.rows if t["check"].get_active()]
         if not selected:
             ui.info(self, "Отметьте, что нужно очистить.")
@@ -162,27 +197,44 @@ class Cleaner(ui.MvsWindow):
         ):
             return
 
-        freed = 0
-        for target in selected:
-            self.log.append("▸ %s" % target["name"])
-            if target["command"] is not None:
-                command = (
-                    ui.priv_prefix() + target["command"]
-                    if target["privileged"]
-                    else target["command"]
-                )
-                code, out_text, err = ui.run(command, timeout=120)
-                self.log.append((out_text or err or "").strip()[:500])
-                if code != 0:
-                    self.log.append("  ошибка, код %d" % code)
-            else:
-                if os.path.exists(target["path"]):
-                    freed += clear_directory(target["path"])
-            self.log.append("  готово")
+        self.set_busy(True)
+        self.log.clear()
+        ui.background(self.clean_worker, selected, on_done=self.after_clean)
 
+    def clean_worker(self, selected):
+        freed = 0
+        errors = []
+        for target in selected:
+            ui.idle_once(self.log.append, "▸ %s" % target["name"])
+            if target["command"] is not None:
+                command = target["command"]
+                if target["privileged"]:
+                    command = ui.priv_prefix() + command
+                code, out_text, err = ui.run(command, timeout=300)
+                message = (out_text or err or "").strip()
+                if message:
+                    ui.idle_once(self.log.append, message[:500])
+                if code != 0:
+                    errors.append("%s: код %d" % (target["name"], code))
+                    ui.idle_once(self.log.append, "  ошибка, код %d" % code)
+            elif os.path.exists(target["path"]):
+                freed += clear_directory(target["path"])
+            ui.idle_once(self.log.append, "  готово")
+        return freed, errors
+
+    def after_clean(self, result):
+        self.set_busy(False)
+        if isinstance(result, Exception):
+            self.log.append("Очистка прервана: %s" % result)
+            ui.error(self, "Очистка прервана:\n%s" % result)
+            return
+        freed, errors = result
         self.log.append("Освобождено вручную: %s" % ui.human_bytes(freed))
+        if errors:
+            self.log.append("Не всё удалось: %s" % "; ".join(errors))
+        else:
+            ui.notify("MVS Cleaner: очистка завершена")
         self.refresh()
-        ui.notify("MVS Cleaner: очистка завершена")
 
 
 def main():

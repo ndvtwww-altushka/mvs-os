@@ -8,6 +8,7 @@ tarfile.data_filter и не может выйти за пределы выбра
 
 import datetime
 import os
+import stat
 import sys
 import tarfile
 
@@ -68,6 +69,83 @@ def archive_name(path):
     if relative == os.pardir or relative.startswith(os.pardir + os.sep):
         return os.path.basename(path)
     return relative
+
+
+def add_to_archive(archive, path, arcname, skip, stats):
+    """Добавляет папку по одному элементу и не рвётся на нечитаемом файле.
+
+    tarfile.add(recursive=True) останавливается на первом же файле без прав
+    чтения и оставляет недописанный архив. Здесь такой файл пропускается
+    с записью в журнал, остальные копируются.
+    """
+    if os.path.abspath(path) in skip:
+        return
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        stats["skipped"] += 1
+        stats["notes"].append("%s: %s" % (arcname, exc.strerror or exc))
+        return
+
+    try:
+        if stat.S_ISDIR(info.st_mode):
+            archive.add(path, arcname=arcname, recursive=False)
+            try:
+                names = sorted(os.listdir(path))
+            except OSError as exc:
+                stats["skipped"] += 1
+                stats["notes"].append("%s: %s" % (arcname, exc.strerror or exc))
+                return
+            for name in names:
+                add_to_archive(
+                    archive, os.path.join(path, name), arcname + "/" + name, skip, stats
+                )
+        elif stat.S_ISREG(info.st_mode):
+            archive.add(path, arcname=arcname, recursive=False)
+            stats["files"] += 1
+        elif stat.S_ISLNK(info.st_mode):
+            # Ссылка сохраняется как ссылка: её цель не читается.
+            archive.add(path, arcname=arcname, recursive=False)
+            stats["links"] += 1
+        else:
+            stats["skipped"] += 1
+            stats["notes"].append("%s: не обычный файл" % arcname)
+    except (OSError, tarfile.TarError) as exc:
+        stats["skipped"] += 1
+        stats["notes"].append("%s: %s" % (arcname, exc))
+
+
+def restore_problem(member, root):
+    """Почему элемент архива нельзя распаковывать. None — можно."""
+    name = member.name.replace("\\", "/")
+    if (
+        not name
+        or name.startswith("/")
+        or name == ".."
+        or name.startswith("../")
+        or "/../" in name
+    ):
+        return "путь вне выбранной папки"
+
+    target = os.path.realpath(os.path.join(root, name))
+    if target != root and not target.startswith(root + os.sep):
+        return "путь вне выбранной папки"
+
+    if member.issym() or member.islnk():
+        link = member.linkname.replace("\\", "/")
+        if not link:
+            return "пустая ссылка"
+        if os.path.isabs(link):
+            return "абсолютная ссылка"
+        base = root if member.islnk() else os.path.dirname(target)
+        resolved = os.path.realpath(os.path.join(base, link))
+        if resolved != root and not resolved.startswith(root + os.sep):
+            return "ссылка ведёт за пределы папки"
+    elif member.isdev():
+        return "устройство"
+    elif member.isfifo():
+        return "именованный канал"
+    return None
 
 
 class Backup(ui.MvsWindow):
@@ -225,32 +303,54 @@ class Backup(ui.MvsWindow):
         self.set_busy(True)
 
         def worker():
+            stats = {"files": 0, "links": 0, "skipped": 0, "notes": []}
+            # Сам архив и его .part не должны попасть внутрь: иначе копия
+            # растёт на глазах и в пределе забивает диск.
+            skip = {os.path.abspath(destination), os.path.abspath(temporary)}
             try:
                 with tarfile.open(temporary, "w:gz", format=tarfile.PAX_FORMAT) as archive:
                     for path in sources:
-                        if os.path.isdir(path):
-                            archive.add(path, arcname=archive_name(path), recursive=True)
-                        elif os.path.isfile(path):
-                            archive.add(path, arcname=archive_name(path))
+                        if os.path.isdir(path) or os.path.isfile(path):
+                            add_to_archive(archive, path, archive_name(path), skip, stats)
+                        else:
+                            stats["skipped"] += 1
+                            stats["notes"].append("%s: нет такого файла" % path)
                 os.replace(temporary, destination)
-                return None
+                return stats
             except Exception as exc:  # noqa: BLE001 — ошибку покажет after_create
                 try:
                     os.unlink(temporary)
                 except OSError:
                     pass
-                return exc
+                return {"error": exc}
 
         ui.background(worker, on_done=self.after_create)
 
-    def after_create(self, error):
+    def after_create(self, result):
         self.set_busy(False)
-        if error is None:
-            self.log.append("Копия готова.")
-            ui.notify("MVS Backup: копия создана")
-        else:
+        if isinstance(result, Exception):
+            result = {"error": result}
+        if result.get("error") is not None:
+            error = result["error"]
             self.log.append("Ошибка создания копии: %s" % error)
             ui.error(self, "Не удалось создать копию:\n%s" % error)
+            return
+
+        self.log.append(
+            "Копия готова: файлов %d, ссылок %d."
+            % (result["files"], result["links"])
+        )
+        if result["skipped"]:
+            self.log.append("Пропущено (нет прав чтения или особый файл): %d" % result["skipped"])
+            for note in result["notes"][:12]:
+                self.log.append("  %s" % note)
+            ui.info(
+                self,
+                "Копия создана, но %d объектов пропущено — в журнале видно, какие.\n\n"
+                "Обычно это чужие файлы без прав чтения или сокеты." % result["skipped"],
+            )
+        else:
+            ui.notify("MVS Backup: копия создана")
 
     # -- восстановление -----------------------------------------------------
 
@@ -302,35 +402,55 @@ class Backup(ui.MvsWindow):
         self.set_busy(True)
 
         def worker():
+            root = os.path.realpath(destination)
+            restored = 0
+            skipped = []
             try:
                 with tarfile.open(archive, "r:*") as source:
-                    if hasattr(tarfile, "data_filter"):
-                        source.extractall(destination, filter="data")
-                    else:
-                        # Python 3.11.2 в bookworm не знает filter=, поэтому
-                        # хотя бы вручную отсекаем пути за пределы папки.
-                        root = os.path.realpath(destination)
-                        for member in source.getmembers():
-                            target = os.path.realpath(os.path.join(destination, member.name))
-                            if target != root and not target.startswith(root + os.sep):
-                                raise tarfile.TarError(
-                                    "небезопасный путь в архиве: %s" % member.name
-                                )
-                        source.extractall(destination)
-                return None
+                    for member in source.getmembers():
+                        # Симлинк на /etc/shadow или ../../ — это уже не
+                        # «резервная копия», а попытка записи вне папки.
+                        reason = restore_problem(member, root)
+                        if reason:
+                            skipped.append("%s — %s" % (member.name, reason))
+                            continue
+                        try:
+                            if hasattr(tarfile, "data_filter"):
+                                source.extract(member, destination, filter="data")
+                            else:
+                                source.extract(member, destination)
+                            restored += 1
+                        except (OSError, tarfile.TarError) as exc:
+                            skipped.append("%s — %s" % (member.name, exc))
+                return {"restored": restored, "skipped": skipped}
             except Exception as exc:  # noqa: BLE001 — ошибку покажет after_restore
-                return exc
+                return {"error": exc, "restored": restored, "skipped": skipped}
 
         ui.background(worker, on_done=self.after_restore)
 
-    def after_restore(self, error):
+    def after_restore(self, result):
         self.set_busy(False)
-        if error is None:
-            self.log.append("Архив распакован.")
-            ui.notify("MVS Backup: архив распакован")
+        if isinstance(result, Exception):
+            result = {"error": result, "restored": 0, "skipped": []}
+        skipped = result.get("skipped") or []
+        if result.get("error") is not None:
+            self.log.append("Ошибка восстановления: %s" % result["error"])
+            ui.error(self, "Не удалось восстановить архив:\n%s" % result["error"])
+            return
+
+        self.log.append("Распаковано элементов: %d." % result["restored"])
+        if skipped:
+            self.log.append("Пропущено из соображений безопасности: %d" % len(skipped))
+            for note in skipped[:20]:
+                self.log.append("  %s" % note)
+            ui.info(
+                self,
+                "Архив распакован, но %d элементов пропущено:\n\n%s\n\n"
+                "Так MVS Backup не даёт архиву записать файлы или ссылки "
+                "за пределы выбранной папки." % (len(skipped), "\n".join(skipped[:8])),
+            )
         else:
-            self.log.append("Ошибка восстановления: %s" % error)
-            ui.error(self, "Не удалось восстановить архив:\n%s" % error)
+            ui.notify("MVS Backup: архив распакован")
 
 
 def main():

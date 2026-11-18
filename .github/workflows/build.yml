@@ -1,8 +1,10 @@
 name: MVS OS — сборка ISO
 
-# Сборка запускается на каждый push в main, на теги v* и вручную
-# (Actions → Run workflow). ISO собирается в Debian-окружении runner'а.
-# В ручном запуске можно сразу опубликовать GitHub Release.
+# Порядок намеренно жёсткий:
+#   checks → build → qemu (BIOS, UEFI, Secure Boot) → release.
+# Релиз публикуется только если все три загрузки прошли. Раньше QEMU-тест
+# был «информационным» и стоял после публикации, поэтому релиз мог выйти
+# с нерабочим ISO. Теперь это гейт.
 
 on:
   push:
@@ -12,11 +14,11 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: "Опубликовать GitHub Release с ISO"
+        description: "Опубликовать GitHub Release с ISO (после QEMU-тестов)"
         type: boolean
         default: false
       release_tag:
-        description: "Тег релиза (пусто — v1.0)"
+        description: "Тег релиза (пусто — v<версия из VERSION>)"
         type: string
         default: ""
 
@@ -27,9 +29,6 @@ concurrency:
   group: mvs-os-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  VERSION: "1.0"
-
 jobs:
   # ------------------------------------------------------------------ проверки
   checks:
@@ -38,6 +37,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
+      - name: Версия из одного файла
+        run: |
+          test -s VERSION || { echo "::error::нет файла VERSION"; exit 1; }
+          VERSION=$(tr -d ' \n' < VERSION)
+          CODENAME=$(tr -d '\n' < CODENAME)
+          echo "VERSION=$VERSION"
+          echo "CODENAME=$CODENAME"
+          test -n "$VERSION"
+          test -n "$CODENAME"
 
       - name: Зависимости проверок
         run: |
@@ -58,15 +67,15 @@ jobs:
           import sys
 
           bad = 0
-          for path in sorted(pathlib.Path("config").rglob("*.py")):
+          paths = sorted(pathlib.Path("config").rglob("*.py")) + [pathlib.Path("tests/qemu_smoke.py")]
+          for path in paths:
               source = path.read_text(encoding="utf-8")
               try:
                   compile(source, str(path), "exec")
               except SyntaxError as exc:
                   print("%s:%s: %s" % (path, exc.lineno, exc.msg))
                   bad += 1
-          print("Python: файлов проверено — %d, ошибок — %d" % (
-              len(list(pathlib.Path("config").rglob("*.py"))), bad))
+          print("Python: файлов проверено — %d, ошибок — %d" % (len(paths), bad))
           sys.exit(1 if bad else 0)
           PY
 
@@ -113,17 +122,41 @@ jobs:
           sys.exit(1 if bad else 0)
           PY
 
+      - name: Снимки btrfs — инструменты на месте и исполняемые
+        run: |
+          for f in config/includes.chroot/usr/local/sbin/mvs-snapshot \
+                   config/includes.chroot/usr/local/sbin/mvs-identity \
+                   config/includes.chroot/etc/grub.d/40_mvs_snapshots; do
+            test -s "$f" || { echo "::error::нет $f"; exit 1; }
+            sh -n "$f"
+          done
+          grep -q 'btrfsSubvolumes' config/includes.chroot/etc/calamares/modules/mount.conf
+          grep -q 'btrfs-progs' config/package-lists/04-installer.list.chroot
+          echo "снимки btrfs: конфигурация на месте"
+
   # ------------------------------------------------------------------ сборка
   build:
     name: Сборка ISO
     needs: checks
-    # Pull request проверяет только статику: полная сборка идёт больше часа
-    # и не должна запускаться на каждое изменение в PR.
+    # Pull request проверяет только статику: полная сборка идёт больше часа.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 150
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      codename: ${{ steps.version.outputs.codename }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Прочитать VERSION и CODENAME
+        id: version
+        run: |
+          VERSION=$(tr -d ' \n' < VERSION)
+          CODENAME=$(tr -d '\n' < CODENAME)
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "codename=$CODENAME" >> "$GITHUB_OUTPUT"
+          echo "MVS OS $VERSION «$CODENAME»"
 
       - name: Освободить место на диске
         run: |
@@ -133,13 +166,12 @@ jobs:
           df -h /
 
       - name: Комплект для запуска в окне
-        # Маленький архив: скрипт QEMU и инструкция. ISO кладётся рядом.
         run: |
           mkdir -p vm-kit
           cp tools/make-vm.sh vm-kit/
           cp docs/vm.md vm-kit/README.md
-          tar -czf "MVS-OS-${VERSION}-vm-linux.tar.gz" -C vm-kit .
-          ls -lh "MVS-OS-${VERSION}-vm-linux.tar.gz"
+          tar -czf "MVS-OS-${{ steps.version.outputs.version }}-vm-linux.tar.gz" -C vm-kit .
+          ls -lh "MVS-OS-${{ steps.version.outputs.version }}-vm-linux.tar.gz"
 
       - name: Зависимости сборки
         run: |
@@ -148,7 +180,8 @@ jobs:
             debootstrap debian-archive-keyring fakeroot squashfs-tools xorriso \
             syslinux syslinux-common isolinux syslinux-efi \
             grub-efi-amd64-bin grub-pc-bin \
-            mtools dosfstools file rsync wget xz-utils bzip2 cpio apt-utils
+            mtools dosfstools file rsync wget xz-utils bzip2 cpio apt-utils \
+            btrfs-progs
 
       - name: live-build из Debian bookworm
         # В Ubuntu 24.04 live-build 3.0~a57 (2013 год) не знает
@@ -166,15 +199,16 @@ jobs:
         run: |
           lb --version || true
           xorriso --version 2>&1 | head -n 1 || true
+          btrfs --version || true
           python3 --version
 
       - name: Сборка
         run: sudo sh ./build.sh
 
-      - name: Размер и возможность публикации
+      - name: Размер ISO
         id: size
         run: |
-          ISO="MVS-OS-${VERSION}-amd64.iso"
+          ISO="MVS-OS-${{ steps.version.outputs.version }}-amd64.iso"
           test -f "$ISO" || { echo "::error::ISO не создан"; exit 1; }
           BYTES=$(stat -c%s "$ISO")
           echo "bytes=$BYTES" >> "$GITHUB_OUTPUT"
@@ -204,102 +238,35 @@ jobs:
         with:
           name: mvs-os-iso
           path: |
-            MVS-OS-${{ env.VERSION }}-amd64.iso
-            MVS-OS-${{ env.VERSION }}-amd64.iso.sha256
-            MVS-OS-${{ env.VERSION }}-vm-linux.tar.gz
+            MVS-OS-${{ steps.version.outputs.version }}-amd64.iso
+            MVS-OS-${{ steps.version.outputs.version }}-amd64.iso.sha256
+            MVS-OS-${{ steps.version.outputs.version }}-vm-linux.tar.gz
             SHA256SUMS
-            BUILD-INFO-${{ env.VERSION }}.txt
-            PACKAGES-${{ env.VERSION }}.txt
+            BUILD-INFO-${{ steps.version.outputs.version }}.txt
+            PACKAGES-${{ steps.version.outputs.version }}.txt
           if-no-files-found: error
           retention-days: 14
 
-      - name: Публикация релиза
-        # Тег v* или ручной запуск с publish_release=true.
-        if: |
-          steps.size.outputs.publish == 'true' &&
-          (startsWith(github.ref, 'refs/tags/') || inputs.publish_release)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || format('v{0}', env.VERSION) }}
-          name: MVS OS ${{ env.VERSION }} «Aurora»
-          draft: false
-          body: |
-            MVS OS ${{ env.VERSION }} «Aurora» — live-образ на базе Debian 12
-            (bookworm) с рабочим столом XFCE, приложениями MVS и установщиком
-            Calamares. Загружается в BIOS и UEFI.
-
-            ## Файлы
-
-            - `MVS-OS-${{ env.VERSION }}-amd64.iso` — образ, ${{ steps.size.outputs.human }}
-            - `MVS-OS-${{ env.VERSION }}-amd64.iso.sha256`, `SHA256SUMS` — контрольные суммы
-            - `MVS-OS-${{ env.VERSION }}-vm-linux.tar.gz` — скрипт запуска в окне и инструкция
-            - `BUILD-INFO-${{ env.VERSION }}.txt` — коммит, размер, ядро, число пакетов
-            - `PACKAGES-${{ env.VERSION }}.txt` — полный список пакетов образа
-
-            ## Запустить в окне на Linux
-
-            ```sh
-            sh tools/make-vm.sh --live
-            ```
-
-            QEMU откроет MVS OS в окне. Крестик закрывает виртуальную машину
-            и возвращает в Linux; хост не перезагружается. `Alt+Tab`
-            переключает между MVS OS и Linux, клик по окну — назад.
-            Внутри включены virtio-сеть и видео, iothread и звук — в окне
-            заметно быстрее. Нужен пакет `qemu-system-x86` и желательно
-            доступ к `/dev/kvm`.
-
-            ## Проверка и запись на флешку
-
-            ```sh
-            sha256sum -c SHA256SUMS
-            sudo tools/write-usb.sh /dev/sdX
-            ```
-
-            Или вручную:
-
-            ```sh
-            sudo dd if=MVS-OS-${{ env.VERSION }}-amd64.iso of=/dev/sdX \
-              bs=4M status=progress oflag=sync
-            ```
-
-            ## Что внутри
-
-            - Live-система с автологином и установка на диск через Calamares;
-            - MVS Hub, Control Center, Store, Update, Backup, Monitor, Doctor;
-            - тёмная и светлая темы, иконки MVS, Plymouth, три обоины;
-            - сборка полностью воспроизводится в GitHub Actions.
-
-            Исправления поверх исходников 1.0 перечислены в
-            [CHANGELOG.md](https://github.com/ndvtwww-altushka/mvs-os/blob/main/CHANGELOG.md).
-          files: |
-            MVS-OS-${{ env.VERSION }}-amd64.iso
-            MVS-OS-${{ env.VERSION }}-amd64.iso.sha256
-            MVS-OS-${{ env.VERSION }}-vm-linux.tar.gz
-            SHA256SUMS
-            BUILD-INFO-${{ env.VERSION }}.txt
-            PACKAGES-${{ env.VERSION }}.txt
-
-      - name: ISO больше лимита GitHub
-        if: |
-          steps.size.outputs.publish != 'true' &&
-          (startsWith(github.ref, 'refs/tags/') || inputs.publish_release)
-        run: |
-          echo "::warning::Релиз не опубликован: ISO больше лимита GitHub (2 ГБ)."
-          echo "ISO доступен как артефакт сборки; SHA256SUMS можно выложить вручную."
-
-  # --------------------------------------------------- загрузка в QEMU (дым)
+  # --------------------------------------------------- загрузка в QEMU (гейт)
   qemu:
-    name: QEMU smoke (информационный)
+    name: QEMU — ${{ matrix.mode }}
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    # Тест загрузки не блокирует выпуск: он проверяет, что ISO вообще
-    # стартует и выдаёт графику, но не заменяет ручную проверку на железе.
-    continue-on-error: true
+    timeout-minutes: 45
+    strategy:
+      # Все три режима проверяются независимо: падение одного не скрывает
+      # результаты остальных.
+      fail-fast: false
+      matrix:
+        include:
+          - mode: BIOS
+            args: ""
+          - mode: UEFI
+            args: "--uefi"
+          - mode: Secure Boot
+            args: "--secure-boot"
     env:
-      # Даём XFCE время дойти до рабочего стола, а не только до GRUB.
-      MVS_QEMU_BOOT: "240"
+      MVS_QEMU_BOOT: "300"
     steps:
       - uses: actions/checkout@v4
 
@@ -314,22 +281,128 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             qemu-system-x86 ovmf
 
-      - name: Загрузка ISO (BIOS) и снимок экрана
-        continue-on-error: true
-        run: python3 tests/qemu_smoke.py "MVS-OS-${VERSION}-amd64.iso"
-
-      - name: Загрузка ISO (UEFI) и снимок экрана
-        continue-on-error: true
-        run: python3 tests/qemu_smoke.py --uefi "MVS-OS-${VERSION}-amd64.iso"
+      - name: Загрузка ISO (${{ matrix.mode }}) и проверка экрана
+        run: |
+          python3 tests/qemu_smoke.py ${{ matrix.args }} \
+            "MVS-OS-${{ needs.build.outputs.version }}-amd64.iso"
 
       - name: Сохранить снимки и журналы
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qemu-smoke
+          name: qemu-${{ matrix.mode }}
           path: |
             qemu*.log
             serial*.log
             boot*.ppm
             ovmf-vars*.fd
           if-no-files-found: ignore
+
+  # ------------------------------------------------------------- публикация
+  release:
+    name: Публикация релиза
+    # Только после успешной сборки и всех трёх загрузок.
+    needs: [build, qemu]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.qemu.result == 'success' &&
+      (startsWith(github.ref, 'refs/tags/') || inputs.publish_release == true)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Скачать ISO и контрольные суммы
+        uses: actions/download-artifact@v4
+        with:
+          name: mvs-os-iso
+
+      - name: Проверить, что все три загрузки прошли
+        run: |
+          echo "Сборка: ${{ needs.build.result }}"
+          echo "QEMU (BIOS, UEFI, Secure Boot): ${{ needs.qemu.result }}"
+          test "${{ needs.build.result }}" = "success"
+          test "${{ needs.qemu.result }}" = "success"
+          test -f "MVS-OS-${{ needs.build.outputs.version }}-amd64.iso"
+          echo "Гейт пройден — публикуем."
+
+      - name: Публикация GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || format('v{0}', needs.build.outputs.version) }}
+          name: MVS OS ${{ needs.build.outputs.version }} «${{ needs.build.outputs.codename }}»
+          draft: false
+          body: |
+            MVS OS ${{ needs.build.outputs.version }} «${{ needs.build.outputs.codename }}» —
+            live-образ на базе Debian 12 (bookworm) с XFCE, приложениями MVS
+            и установщиком Calamares.
+
+            Образ собран из этого коммита и **проверен загрузкой в QEMU
+            в трёх режимах**: BIOS, UEFI и UEFI с включённым Secure Boot
+            (shim → подписанный GRUB). Релиз создан только после того,
+            как все три проверки прошли.
+
+            ## Главное в 1.4
+
+            - **Откат снимками btrfs.** Установка по умолчанию — btrfs
+              с субтомами `@`, `@home`, `@snapshots`. Перед каждым
+              обновлением создаётся снимок, а в меню GRUB появляется
+              пункт «MVS OS — откат к снимкам». Снимок грузится своим
+              ядром и своим `fstab`; вернуться можно и навсегда:
+              `sudo mvs-snapshot promote <имя>`.
+            - **Идентичность MVS не слетает.** `/etc/os-release` и
+              `/usr/lib/os-release` уведены через `dpkg-divert`, поэтому
+              обновление `base-files` больше не превращает систему
+              в «Debian GNU/Linux».
+            - **Обновления без вопросов dpkg.** MVS Update и Store
+              запускают apt с `DEBIAN_FRONTEND=noninteractive` и
+              `--force-confold`: изменённые конфиги сохраняются, окно
+              не ждёт ответа в невидимом терминале.
+            - **Приложения не зависают.** Списки обновлений, поиск
+              в Store, размеры и очистка кэша, снимок перед обновлением —
+              всё в фоне.
+            - **Backup стал надёжнее.** Архив не попадает сам в себя,
+              один нечитаемый файл не срывает копирование, а при
+              восстановлении проверяются симлинки и пути.
+            - **Версия в одном файле.** `VERSION` и `CODENAME` — единственный
+              источник; `build.sh`, приложения и `os-release` читают их.
+
+            ## Файлы
+
+            - `MVS-OS-${{ needs.build.outputs.version }}-amd64.iso` — образ (точный размер в BUILD-INFO)
+            - `MVS-OS-${{ needs.build.outputs.version }}-amd64.iso.sha256`, `SHA256SUMS` — контрольные суммы
+            - `MVS-OS-${{ needs.build.outputs.version }}-vm-linux.tar.gz` — запуск в окне и инструкция
+            - `BUILD-INFO-${{ needs.build.outputs.version }}.txt` — коммит, размер, ядро, число пакетов
+            - `PACKAGES-${{ needs.build.outputs.version }}.txt` — полный список пакетов
+
+            ## Проверка и запись на флешку
+
+            ```sh
+            sha256sum -c SHA256SUMS
+            sudo tools/write-usb.sh /dev/sdX
+            ```
+
+            Или вручную:
+
+            ```sh
+            sudo dd if=MVS-OS-${{ needs.build.outputs.version }}-amd64.iso of=/dev/sdX \
+              bs=4M status=progress oflag=sync
+            ```
+
+            ## Честно о границах проверки
+
+            QEMU подтверждает, что ISO стартует, доходит до рабочего стола
+            и проходит проверку подписи в Secure Boot. Установка на диск,
+            снимки и откат проверяются на реальном компьютере или в QEMU
+            с диском — это следующий шаг, а не то, что уже доказано этим
+            релизом.
+
+            Изменения по файлам — в
+            [CHANGELOG.md](https://github.com/ndvtwww-altushka/mvs-os/blob/main/CHANGELOG.md).
+          files: |
+            MVS-OS-${{ needs.build.outputs.version }}-amd64.iso
+            MVS-OS-${{ needs.build.outputs.version }}-amd64.iso.sha256
+            MVS-OS-${{ needs.build.outputs.version }}-vm-linux.tar.gz
+            SHA256SUMS
+            BUILD-INFO-${{ needs.build.outputs.version }}.txt
+            PACKAGES-${{ needs.build.outputs.version }}.txt
+

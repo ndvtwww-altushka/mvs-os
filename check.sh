@@ -12,7 +12,7 @@
 #   * Python: синтаксис (если python3 есть в системе);
 #   * JSON и YAML: структура (если есть python3 и PyYAML);
 #   * Calamares: у каждого модуля из settings.conf есть конфиг;
-#   * версия: VERSION, build.sh, mvsui.py, os-release совпадают.
+#   * версия: единственный источник — VERSION; код читает /etc/mvs-version.
 #
 # Чего проверка не делает: не собирает ISO и не запускает систему.
 # Это делает GitHub Actions (сборка + QEMU smoke) и ручная проверка.
@@ -36,6 +36,8 @@ printf '\n▸ Синтаксис sh\n'
 for f in build.sh check.sh \
          config/hooks/live/*.hook.chroot \
          config/includes.chroot/usr/local/bin/* \
+         config/includes.chroot/usr/local/sbin/* \
+         config/includes.chroot/etc/grub.d/40_mvs_snapshots \
          config/includes.chroot/usr/local/share/mvs-os/games/*.sh \
          tools/*.sh; do
     [ -f "$f" ] || continue
@@ -220,17 +222,34 @@ fi
 
 printf '\n▸ Версия\n'
 file_version=$(tr -d ' \n' < VERSION 2>/dev/null || echo "")
-build_version=$(sed -n 's/^VERSION="\([^"]*\)"/\1/p' build.sh | head -n 1)
-ui_version=$(sed -n 's/^VERSION = "\([^"]*\)"/\1/p' config/includes.chroot/usr/lib/mvs/mvsui.py | head -n 1)
-os_version=$(sed -n 's/^VERSION_ID="\([^"]*\)"/\1/p' config/includes.chroot/etc/os-release | head -n 1)
-
-printf '  версии: VERSION=%s build.sh=%s mvsui.py=%s os-release=%s\n' \
-    "$file_version" "$build_version" "$ui_version" "$os_version"
-if [ -n "$file_version" ] && [ "$file_version" = "$build_version" ] \
-        && [ "$file_version" = "$ui_version" ] && [ "$file_version" = "$os_version" ]; then
-    ok "версии совпадают"
+if [ -n "$file_version" ]; then
+    ok "VERSION=$file_version"
 else
-    bad "версии не совпадают"
+    bad "пустой или отсутствует VERSION"
+fi
+
+# Версия должна читаться из одного файла, а не быть вписанной в код.
+if grep -q 'VERSION=$(tr' build.sh 2>/dev/null; then
+    ok "build.sh берёт версию из VERSION"
+else
+    bad "build.sh не читает файл VERSION"
+fi
+
+for reader in \
+    config/includes.chroot/usr/lib/mvs/mvsui.py \
+    config/includes.chroot/usr/local/sbin/mvs-identity; do
+    if grep -q '/etc/mvs-version' "$reader" 2>/dev/null; then
+        ok "$(basename "$reader"): версия из /etc/mvs-version"
+    else
+        bad "$(basename "$reader"): не читает /etc/mvs-version"
+    fi
+done
+
+# Статический os-release — это была бы вторая версия в исходниках.
+if [ -e config/includes.chroot/etc/os-release ]; then
+    bad "config/includes.chroot/etc/os-release дублирует версию (его генерирует сборка)"
+else
+    ok "статического os-release нет"
 fi
 
 printf '\n▸ Calamares\n'

@@ -8,6 +8,10 @@ calamares
 libqt5svg5
 qttranslations5-l10n
 
+# btrfs-progs нужен и Live-системе (проверка снимков), и установленной:
+# без него не работают mvs-snapshot и пункты отката в GRUB.
+btrfs-progs
+
 grub2-common
 grub-common
 grub-pc-bin

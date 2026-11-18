@@ -1,5 +1,5 @@
 #!/bin/sh
-# MVS OS 1.0 «Aurora» — брендинг и права внутри chroot.
+# MVS OS — брендинг и права внутри chroot.
 #
 # Выполняется live-build'ом после установки пакетов. Здесь только то,
 # что нельзя положить готовым файлом: права, кэши, выбор темы Plymouth,
@@ -13,9 +13,11 @@ printf 'mvs-os\n' > /etc/hostname
 printf 'PRETTY_HOSTNAME=MVS OS\nICON_NAME=computer\n' > /etc/machine-info
 
 # --- приветствие в консоли -------------------------------------------------
-cat > /etc/motd <<'MOTD'
+MVS_VERSION=$(cat /etc/mvs-version 2>/dev/null || echo "1.4")
+MVS_CODENAME=$(cat /etc/mvs-codename 2>/dev/null || echo "Aurora Nova")
+cat > /etc/motd <<MOTD
 
-  MVS OS 1.0 «Aurora» (Live)
+  MVS OS $MVS_VERSION «$MVS_CODENAME» (Live)
 
   Система работает с флешки: диск компьютера не изменяется.
   Установка на диск — ярлык «Установить MVS OS» на рабочем столе.

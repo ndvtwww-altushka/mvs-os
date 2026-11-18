@@ -1,0 +1,207 @@
+#!/bin/sh
+# MVS OS — снимки btrfs и возврат к ним.
+#
+# Снимок делается с корневого субтома (@) и кладётся рядом с ним,
+# в отдельный субтом @snapshots. Поэтому снимки не попадают внутрь
+# следующих снимков и не растут бесконечно.
+#
+# Использование:
+#   mvs-snapshot create [причина]   создать снимок (причина — латиницей)
+#   mvs-snapshot list [--short]     список снимков
+#   mvs-snapshot delete <имя>       удалить снимок
+#   mvs-snapshot promote <имя>      сделать снимок загрузочным по умолчанию
+#
+# Пункты «откат» в меню GRUB создаёт /etc/grub.d/40_mvs_snapshots.
+
+set -eu
+
+SNAP_DIR=/mvs-snapshots
+KEEP=10
+
+say() { printf '%s\n' "$*"; }
+warn() { printf 'mvs-snapshot: %s\n' "$*" >&2; }
+die() { warn "$*"; exit 1; }
+
+[ "$(id -u)" -eq 0 ] || die "нужен root: sudo mvs-snapshot ..."
+
+root_fs() {
+    awk '$2 == "/" { print $3; exit }' /proc/mounts
+}
+
+root_source() {
+    if command -v findmnt >/dev/null 2>&1; then
+        findmnt -no SOURCE / 2>/dev/null && return 0
+    fi
+    awk '$2 == "/" { print $1; exit }' /proc/mounts
+}
+
+root_subvol() {
+    opts=$(awk '$2 == "/" { print $4; exit }' /proc/mounts)
+    printf '%s\n' "$opts" | tr ',' '\n' | sed -n 's|^subvol=||p' | head -n 1
+}
+
+[ "$(root_fs)" = "btrfs" ] || die "корень не на btrfs: снимки и откат недоступны"
+
+TOP=""
+cleanup() {
+    if [ -n "$TOP" ]; then
+        umount "$TOP" 2>/dev/null || true
+        rmdir "$TOP" 2>/dev/null || true
+        TOP=""
+    fi
+}
+trap cleanup EXIT INT TERM
+
+mount_top() {
+    TOP=$(mktemp -d "${TMPDIR:-/tmp}/mvs-snapshot.XXXXXX") || die "нет временной папки"
+    if ! mount -o subvolid=5 "$(root_source)" "$TOP" 2>/dev/null; then
+        die "не удалось открыть корень btrfs (нужен root и btrfs-progs)"
+    fi
+    if [ ! -d "$TOP/@snapshots" ]; then
+        btrfs subvolume create "$TOP/@snapshots" >/dev/null 2>&1 \
+            || die "не удалось создать субтом @snapshots"
+    fi
+}
+
+slug() {
+    printf '%s' "${1:-}" \
+        | tr 'A-Z' 'a-z' \
+        | tr -c 'a-z0-9._-' '-' \
+        | sed 's/-\{2,\}/-/g; s/^-//; s/-$//'
+}
+
+update_grub() {
+    if command -v update-grub >/dev/null 2>&1; then
+        update-grub >/dev/null 2>&1
+    elif command -v grub-mkconfig >/dev/null 2>&1; then
+        grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1
+    fi
+}
+
+# Снимок должен грузиться сам по себе: его /etc/fstab указывает
+# на собственный субтом, иначе systemd при загрузке попытается
+# перемонтировать / в @ и получит чужой корень.
+fix_fstab() {
+    root=$1
+    name=$2
+    fstab="$root/etc/fstab"
+    [ -f "$fstab" ] || return 0
+    subvol="/@snapshots/$name"
+    sed -i \
+        -e "s|subvol=/@\([, ]\)|subvol=$subvol\1|" \
+        -e "s|subvol=@\([, ]\)|subvol=$subvol\1|" \
+        -e "s|subvol=/@$|subvol=$subvol|" \
+        -e "s|subvol=@$|subvol=$subvol|" \
+        "$fstab"
+    if ! grep -q "subvol=$subvol" "$fstab"; then
+        warn "в fstab снимка не нашлась строка корня — загрузка может быть только через GRUB"
+    fi
+}
+
+# Оставляем KEEP последних снимков. Тот, из которого загружены, не трогаем.
+prune() {
+    current=$(root_subvol)
+    old=$(ls -1 "$TOP/@snapshots" 2>/dev/null | sort -r | tail -n +$((KEEP + 1)))
+    [ -n "$old" ] || return 0
+    for dir in $old; do
+        [ "/@snapshots/$dir" = "$current" ] && continue
+        if btrfs subvolume delete "$TOP/@snapshots/$dir" >/dev/null 2>&1; then
+            warn "удалён старый снимок: $dir"
+        fi
+    done
+}
+
+cmd_create() {
+    reason=$(slug "${1:-manual}")
+    [ -n "$reason" ] || reason=manual
+    subvol=$(root_subvol)
+    case "$subvol" in
+        /@*) ;;
+        *) die "корень не в субтоме (@): снимок сделать нельзя" ;;
+    esac
+    [ -d "$TOP" ] || mount_top
+    [ -d "$TOP/$subvol" ] || die "не найден субтом $subvol"
+
+    # Версия ядра в имени: генератор GRUB берёт из него vmlinuz и initrd,
+    # не заглядывая внутрь снимка.
+    name="$(date +%Y-%m-%d_%H-%M-%S)_${reason}__k$(uname -r)"
+
+    btrfs subvolume snapshot "$TOP/$subvol" "$TOP/@snapshots/$name" >/dev/null \
+        || die "btrfs не смог создать снимок"
+    fix_fstab "$TOP/@snapshots/$name" "$name"
+    prune
+    cleanup
+
+    if ! update_grub; then
+        warn "update-grub завершился с ошибкой: пункт появится после следующего обновления GRUB"
+    fi
+    say "$name"
+}
+
+cmd_list() {
+    short=${1:-}
+    mount_top
+    current=$(root_subvol)
+    found=0
+    for dir in $(ls -1 "$TOP/@snapshots" 2>/dev/null | sort -r); do
+        found=1
+        if [ "$short" = "--short" ]; then
+            say "$dir"
+            continue
+        fi
+        mark=""
+        [ "/@snapshots/$dir" = "$current" ] && mark="  ← загружен сейчас"
+        say "$dir$mark"
+    done
+    [ "$found" -eq 1 ] || warn "снимков пока нет"
+    cleanup
+}
+
+cmd_delete() {
+    name=${1:-}
+    case "$name" in
+        "" | */* | .* | ..) die "укажите имя снимка" ;;
+    esac
+    [ "/@snapshots/$name" = "$(root_subvol)" ] \
+        && die "нельзя удалить снимок, из которого загружены"
+
+    mount_top
+    [ -d "$TOP/@snapshots/$name" ] || die "нет снимка: $name"
+    btrfs subvolume delete "$TOP/@snapshots/$name" >/dev/null \
+        || die "btrfs не смог удалить снимок"
+    cleanup
+    update_grub || true
+    say "удалён: $name"
+}
+
+cmd_promote() {
+    name=${1:-}
+    case "$name" in
+        "" | */* | .* | ..) die "укажите имя снимка" ;;
+    esac
+    mount_top
+    [ -d "$TOP/@snapshots/$name" ] || die "нет снимка: $name"
+    subvol_id=$(btrfs subvolume show "$TOP/@snapshots/$name" 2>/dev/null \
+        | sed -n 's/^[[:space:]]*Subvolume ID:[[:space:]]*//p' | head -n 1)
+    [ -n "$subvol_id" ] || die "не удалось определить номер субтома"
+    btrfs subvolume set-default "$subvol_id" "$TOP" >/dev/null \
+        || die "не удалось назначить снимок по умолчанию"
+    cleanup
+    say "снимок $name теперь загружается по умолчанию. Перезагрузите компьютер."
+    say "Вернуться назад: sudo mvs-snapshot list и sudo mvs-snapshot promote <имя>."
+}
+
+cmd_help() {
+    sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+case "${1:-help}" in
+    create) shift; cmd_create "$@" ;;
+    list) shift; cmd_list "$@" ;;
+    delete) shift; cmd_delete "$@" ;;
+    promote | rollback) shift; cmd_promote "$@" ;;
+    help | -h | --help) cmd_help ;;
+    *) warn "неизвестная команда: $1"; cmd_help; exit 2 ;;
+esac
+
+exit 0

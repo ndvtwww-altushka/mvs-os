@@ -15,8 +15,22 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
 
-VERSION = "1.0"
-CODENAME = "Aurora"
+def _identity(path, fallback):
+    """Версия и кодовое имя живут в /etc/mvs-version и /etc/mvs-codename.
+
+    Так номер версии меняется в одном файле VERSION при сборке, а не
+    в шести местах исходников. Если файла нет — честный запасной вариант.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            value = handle.read().strip()
+        return value or fallback
+    except OSError:
+        return fallback
+
+
+VERSION = _identity("/etc/mvs-version", "1.4")
+CODENAME = _identity("/etc/mvs-codename", "Aurora Nova")
 
 CONFIG_DIR = os.path.expanduser("~/.config/mvs")
 SETTINGS_FILE = os.path.join(CONFIG_DIR, "settings.json")
@@ -97,7 +111,7 @@ def set_theme(mode):
 
 # --------------------------------------------------------------------------- команды
 
-def run(cmd, timeout=20, shell=False):
+def run(cmd, timeout=20, shell=False, env=None):
     """Запуск команды. Возвращает (код, stdout, stderr) и никогда не бросает."""
     if isinstance(cmd, (list, tuple)):
         cmd = list(cmd)
@@ -108,6 +122,7 @@ def run(cmd, timeout=20, shell=False):
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
         return done.returncode, done.stdout or "", done.stderr or ""
     except subprocess.TimeoutExpired:
@@ -128,19 +143,52 @@ def has(command):
     ) == 0
 
 
-_SUDO_OK = None
-
-
 def priv_prefix():
-    """В Live-режиме sudo без пароля; в установленной системе — pkexec."""
-    global _SUDO_OK
-    if _SUDO_OK is None:
-        _SUDO_OK = run(["sudo", "-n", "true"], timeout=5)[0] == 0
-    return ["sudo", "-n"] if _SUDO_OK else ["pkexec"]
+    """В Live-режиме sudo без пароля; в установленной системе — pkexec.
+
+    Раньше здесь был вызов `sudo -n true`: он мог подвесить окно на пять
+    секунд ещё до показа диалога. Теперь режим определяется по файлу,
+    который Calamares удаляет при установке, — мгновенно и без команд.
+    """
+    if os.geteuid() == 0:
+        return []
+    if os.path.exists("/etc/sudoers.d/90-mvs-live"):
+        return ["sudo", "-n"]
+    return ["pkexec"]
 
 
 def priv(cmd, **kwargs):
     return run(priv_prefix() + list(cmd), **kwargs)
+
+
+# apt в графическом приложении не должен задавать вопросы и не должен
+# затирать конфиги, которые пользователь уже менял. Иначе dist-upgrade
+# останавливается на «What do you want to do about modified
+# configuration file ...?» и окно выглядит зависшим.
+APT_ENV = {
+    "DEBIAN_FRONTEND": "noninteractive",
+    "APT_LISTCHANGES_FRONTEND": "none",
+    "NEEDRESTART_MODE": "a",
+    "LC_ALL": "C.UTF-8",
+}
+APT_OPTS = [
+    "-y",
+    "-o", "Dpkg::Options::=--force-confdef",
+    "-o", "Dpkg::Options::=--force-confold",
+    "-o", "DPkg::Lock::Timeout=120",
+]
+
+
+def apt_command(args, privileged=True):
+    """Команда apt-get с неинтерактивными ответами и сохранением конфигов."""
+    command = ["apt-get"] + APT_OPTS + [str(arg) for arg in args]
+    prefix = priv_prefix() if privileged else []
+    return prefix + ["env"] + ["%s=%s" % item for item in APT_ENV.items()] + command
+
+
+def apt_stream(args, log, on_done=None, privileged=True):
+    """apt-get в фоне: интерфейс не замирает, вывод идёт в журнал."""
+    stream(apt_command(args, privileged), log, on_done, env=dict(os.environ, **APT_ENV))
 
 
 def notify(text, title="MVS OS"):
@@ -342,7 +390,7 @@ def idle_once(callback, *args):
     GLib.idle_add(invoke)
 
 
-def stream(cmd, log, on_done=None, shell=False):
+def stream(cmd, log, on_done=None, shell=False, env=None):
     """Выполняет команду и построчно пишет вывод в LogView (в отдельном потоке)."""
     shown = cmd if isinstance(cmd, str) else " ".join(str(part) for part in cmd)
 
@@ -356,6 +404,7 @@ def stream(cmd, log, on_done=None, shell=False):
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
+                env=env,
             )
             if proc.stdout is not None:
                 for line in proc.stdout:

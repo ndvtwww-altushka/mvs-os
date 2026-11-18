@@ -1,0 +1,95 @@
+#!/bin/sh
+# MVS OS — идентичность системы, которая переживает обновления.
+#
+# Проблема: /etc/os-release и /usr/lib/os-release принадлежат base-files.
+# После `apt upgrade` там снова оказывается «Debian GNU/Linux», и система
+# представляется Debian во всех программах. Решение — dpkg-divert:
+# файл пакета уходит в *.distrib, а наш остаётся на месте и после
+# обновления base-files.
+#
+# Скрипт вызывается:
+#   * при сборке образа (hook 0300-mvs-identity);
+#   * из live-admin.conf при установке на диск;
+#   * после каждой операции dpkg (DPkg::Post-Invoke);
+#   * службой mvs-identity.service при загрузке.
+#
+# Он идемпотентен: повторный запуск ничего не ломает.
+
+set -eu
+
+VERSION_FILE=/etc/mvs-version
+CODENAME_FILE=/etc/mvs-codename
+
+[ -r "$VERSION_FILE" ] || exit 0
+VERSION=$(tr -d ' \n' < "$VERSION_FILE")
+[ -n "$VERSION" ] || exit 0
+
+CODENAME=$(cat "$CODENAME_FILE" 2>/dev/null | tr -d '\n' || true)
+[ -n "$CODENAME" ] || CODENAME="Aurora Nova"
+
+if [ -e /etc/mvs-live ]; then
+    MODE=live
+    SUFFIX=" (Live)"
+else
+    MODE=installed
+    SUFFIX=""
+fi
+
+# Переводит файл под dpkg-divert, чтобы пакет писал в *.distrib.
+divert() {
+    path=$1
+    if dpkg-divert --local --list 2>/dev/null | grep -qF "diversion of $path to"; then
+        return 0
+    fi
+    # Если файла нет, diversion всё равно нужен: иначе пакет создаст
+    # его при следующем обновлении и перебьёт нашу идентичность.
+    if [ -e "$path" ] || [ -L "$path" ]; then
+        dpkg-divert --local --quiet --rename --add "$path" >/dev/null 2>&1 || true
+    else
+        dpkg-divert --local --quiet --add "$path" >/dev/null 2>&1 || true
+    fi
+}
+
+# В Debian 12 /etc/os-release — симлинк на /usr/lib/os-release.
+# Нам нужен обычный файл: иначе запись уйдёт в файл пакета.
+if [ -L /etc/os-release ]; then
+    rm -f /etc/os-release
+fi
+if [ -L /usr/lib/os-release ]; then
+    rm -f /usr/lib/os-release
+fi
+
+divert /etc/os-release
+divert /usr/lib/os-release
+divert /etc/lsb-release
+
+write_os_release() {
+    target=$1
+    cat > "$target" <<EOF
+PRETTY_NAME="MVS OS $VERSION$SUFFIX"
+NAME="MVS OS"
+VERSION_ID="$VERSION"
+VERSION="$VERSION «$CODENAME»$SUFFIX"
+VERSION_CODENAME=bookworm
+ID=mvs
+ID_LIKE=debian
+HOME_URL="https://github.com/ndvtwww-altushka/mvs-os"
+MVS_VERSION="$VERSION"
+MVS_EDITION="$CODENAME"
+MVS_MODE="$MODE"
+EOF
+    chmod 644 "$target"
+}
+
+write_os_release /usr/lib/os-release
+write_os_release /etc/os-release
+
+cat > /etc/lsb-release <<EOF
+DISTRIB_ID=MVS
+DISTRIB_RELEASE=$VERSION
+DISTRIB_CODENAME=mvs
+DISTRIB_DESCRIPTION="MVS OS $VERSION «$CODENAME»"
+EOF
+chmod 644 /etc/lsb-release
+
+exit 0

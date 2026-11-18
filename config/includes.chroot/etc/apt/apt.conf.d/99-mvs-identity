@@ -1,0 +1,7 @@
+// MVS OS — имя системы после обновлений.
+//
+// base-files содержит /etc/os-release и /usr/lib/os-release. Без этого
+// хука первый же `apt upgrade` вернул бы «Debian GNU/Linux». mvs-identity
+// держит файлы под dpkg-divert и заново пишет имя MVS после каждой
+// операции dpkg — в том числе когда обновление идёт из терминала.
+DPkg::Post-Invoke { "/usr/local/sbin/mvs-identity || true"; };
